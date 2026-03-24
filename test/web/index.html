@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bitmap Font Generator — Demo</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #1a1a2e; color: #eee; font-family: sans-serif; }
+
+      #app-header {
+        padding: 16px 24px;
+        background: #16213e;
+        border-bottom: 1px solid #0f3460;
+      }
+      h1 { font-size: 18px; color: #e94560; }
+      p.subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+
+      #controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px 24px;
+        background: #16213e;
+        border-bottom: 1px solid #0f3460;
+        align-items: center;
+      }
+      label { font-size: 13px; color: #aaa; }
+      input[type="text"] {
+        background: #0f3460;
+        border: 1px solid #e94560;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 400px;
+      }
+      input[type="range"] { width: 100px; }
+      input[type="color"] { width: 40px; height: 28px; border: none; cursor: pointer; }
+      select {
+        background: #0f3460;
+        border: 1px solid #555;
+        color: #fff;
+        padding: 5px 8px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #status {
+        padding: 8px 24px;
+        font-size: 12px;
+        color: #888;
+        background: #111;
+      }
+      #canvas-container { padding: 24px; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="app-header">
+      <h1>Bitmap Font Generator — PixiJS Demo</h1>
+      <p class="subtitle">Chinese bitmap font with lazy-loaded subsets. Font: HYWenHei-55W</p>
+    </div>
+
+    <div id="controls">
+      <div class="control-group">
+        <label>Text:</label>
+        <input type="text" id="textInput" value="你好世界！中文位图字体演示。Hello World!" />
+      </div>
+      <div class="control-group">
+        <label>Size: <span id="sizeLabel">32</span>px</label>
+        <input type="range" id="sizeInput" min="8" max="128" value="32" />
+      </div>
+      <div class="control-group">
+        <label>Color:</label>
+        <input type="color" id="colorInput" value="#ffffff" />
+      </div>
+      <div class="control-group">
+        <label>Align:</label>
+        <select id="alignInput">
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Max Width: <span id="maxWidthLabel">600</span>px</label>
+        <input type="range" id="maxWidthInput" min="0" max="1200" value="600" step="50" />
+      </div>
+    </div>
+
+    <div id="status">Initializing...</div>
+    <div id="canvas-container"></div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

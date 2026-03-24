@@ -1,0 +1,21 @@
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+
+export default defineConfig({
+  root: '.',
+  publicDir: 'public',
+  resolve: {
+    alias: {
+      'bitmap-font-generator/runtime': resolve(__dirname, '../../runtime/index.ts'),
+      'bitmap-font-generator': resolve(__dirname, '../../src/index.ts'),
+    },
+  },
+  server: {
+    port: 5173,
+    open: true,
+  },
+  build: {
+    outDir: 'dist',
+    target: 'esnext',
+  },
+});
