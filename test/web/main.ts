@@ -83,6 +83,7 @@ function runDemo() {
       fontSize,
       tint,
       align,
+      maxWidth: 600,
     });
     activeLazyText.y = 14;
     interactiveContainer.addChild(activeLazyText);

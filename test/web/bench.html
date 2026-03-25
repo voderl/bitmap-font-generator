@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>渲染性能对比 — Bitmap Font Generator</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #080c14; color: #ccc; font-family: sans-serif; overflow: hidden; }
+
+      #app-header {
+        padding: 10px 20px;
+        background: #0d1117;
+        border-bottom: 1px solid #1e3040;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      #app-header a.back { color: #445566; text-decoration: none; font-size: 12px; }
+      #app-header a.back:hover { color: #99aabc; }
+      h1 { font-size: 15px; color: #e94560; }
+      p.subtitle { font-size: 11px; color: #556677; margin-top: 2px; }
+
+      #controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0;
+        padding: 8px 16px;
+        background: #0d1117;
+        border-bottom: 1px solid #1a2a3a;
+        align-items: center;
+        gap: 14px;
+      }
+
+      /* Mode toggle buttons */
+      .mode-group { display: flex; border: 1px solid #2a3d50; border-radius: 5px; overflow: hidden; }
+      .mode-btn {
+        padding: 5px 16px;
+        font-size: 12px;
+        border: none;
+        background: #111820;
+        color: #667788;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+      }
+      .mode-btn + .mode-btn { border-left: 1px solid #2a3d50; }
+      .mode-btn.active.text  { background: #3a1525; color: #f07090; }
+      .mode-btn.active.bitmap { background: #0e2a1a; color: #40d080; }
+
+      .control-sep { width: 1px; height: 20px; background: #1e3040; }
+
+      label.inline { font-size: 12px; color: #667788; display: flex; align-items: center; gap: 8px; }
+      label.inline strong { color: #99bbcc; min-width: 52px; display: inline-block; text-align: right; }
+      input[type="range"] { width: 160px; }
+
+      .action-btn {
+        padding: 5px 13px;
+        font-size: 12px;
+        border: 1px solid #2a3d50;
+        background: #111820;
+        color: #889aac;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .action-btn:hover { background: #1a2d40; color: #bbccdd; }
+      .action-btn.on { background: #0e2218; border-color: #1e5030; color: #40d080; }
+
+      /* Stats bar */
+      #stats-bar {
+        display: flex;
+        gap: 0;
+        padding: 5px 16px;
+        background: #060a10;
+        border-bottom: 1px solid #111820;
+        font-family: monospace;
+        font-size: 11px;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .stat-item { display: flex; align-items: center; gap: 5px; padding: 0 12px; border-right: 1px solid #1a2a3a; }
+      .stat-item:last-child { border-right: none; }
+      .stat-label { color: #445566; }
+      .stat-value { color: #00c87a; font-weight: bold; min-width: 56px; }
+      .stat-value.warn { color: #e09040; }
+      .stat-value.danger { color: #e05050; }
+
+      #canvas-container { line-height: 0; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="app-header">
+      <a href="/" class="back">← Demo</a>
+      <div>
+        <h1>渲染性能对比</h1>
+        <p class="subtitle">短标签 · 多颜色 · 多字号</p>
+      </div>
+    </div>
+
+    <div id="controls">
+      <div class="mode-group">
+        <button class="mode-btn text"   id="modeText">PixiJS Text</button>
+        <button class="mode-btn bitmap active" id="modeBitmap">LazyBitmapText</button>
+      </div>
+
+      <div class="control-sep"></div>
+
+      <label class="inline">
+        数量 <strong id="countLabel">200</strong>
+        <input type="range" id="countInput" min="0" max="100" value="0" />
+      </label>
+
+      <div class="control-sep"></div>
+
+      <button class="action-btn" id="animToggle">⟳ 自动重建</button>
+      <button class="action-btn" id="resetBtn">↺ 立即重建</button>
+    </div>
+
+    <div id="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">FPS</span>
+        <span class="stat-value" id="stat-fps">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">帧时</span>
+        <span class="stat-value" id="stat-frame">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Ticker</span>
+        <span class="stat-value" id="stat-update">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">首帧提交</span>
+        <span class="stat-value" id="stat-change-frame">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">创建耗时</span>
+        <span class="stat-value" id="stat-create">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">对象数</span>
+        <span class="stat-value" id="stat-count">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Draw calls</span>
+        <span class="stat-value" id="stat-draws">—</span>
+      </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module" src="./bench.ts"></script>
+  </body>
+</html>

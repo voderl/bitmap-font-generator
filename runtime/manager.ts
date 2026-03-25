@@ -12,7 +12,7 @@ class FontHandle {
   private readonly cpToAdv = new Map<number, number>();
   private readonly loadedSubsets = new Set<number>();
   private readonly pendingLoads = new Map<number, Promise<void>>();
-  private readonly subscribers = new Set<() => void>();
+  private readonly subscribers = new Set<(cps: ReadonlySet<number>) => void>();
   /** Code points that have been requested by at least one LazyBitmapText. */
   private readonly requestedCps = new Set<number>();
   private nextGlobalPage = 0;
@@ -47,11 +47,13 @@ class FontHandle {
     // Track which code points have been requested so installFont() knows
     // which unloaded chars need dot entries.
     let addedNew = false;
+    const updatedCps = new Set<number>();
     for (const char of text) {
       const cp = char.codePointAt(0);
       if (cp !== undefined && this.cpToSubset.has(cp) && !this.requestedCps.has(cp)) {
         this.requestedCps.add(cp);
         addedNew = true;
+        if (!this.isCharLoaded(cp)) updatedCps.add(cp);
       }
     }
 
@@ -62,7 +64,7 @@ class FontHandle {
     // away so BitmapText can render dots before any texture download finishes.
     if (addedNew && toLoad.length > 0) {
       await this.installFont();
-      this.notifySubscribers();
+      this.notifySubscribers(updatedCps);
     }
 
     if (toLoad.length === 0) return;
@@ -82,7 +84,7 @@ class FontHandle {
     return { lineHeight: this.manifest.lineHeight, fontSize: this.manifest.fontSize };
   }
 
-  subscribe(cb: () => void): () => void {
+  subscribe(cb: (cps: ReadonlySet<number>) => void): () => void {
     this.subscribers.add(cb);
     return () => this.subscribers.delete(cb);
   }
@@ -125,7 +127,7 @@ class FontHandle {
     }
     this.loadedSubsets.add(subset.id);
     await this.installFont();
-    this.notifySubscribers();
+    this.notifySubscribers(new Set(subset.chars.map((ch) => ch.id)));
   }
 
   private async installFont(): Promise<void> {
@@ -218,8 +220,9 @@ class FontHandle {
     BitmapFont.install(fontData, textures, false);
   }
 
-  private notifySubscribers(): void {
-    for (const cb of this.subscribers) cb();
+  private notifySubscribers(cps: ReadonlySet<number>): void {
+    if (cps.size === 0) return;
+    for (const cb of this.subscribers) cb(cps);
   }
 
   private resolve(path: string): string {
@@ -280,7 +283,7 @@ export class BitmapFontManager {
    * are first registered and again each time a subset finishes loading.
    * Returns an unsubscribe function.
    */
-  static subscribe(fontName: string, cb: () => void): () => void {
+  static subscribe(fontName: string, cb: (cps: ReadonlySet<number>) => void): () => void {
     return this.registry.get(fontName)?.subscribe(cb) ?? (() => {});
   }
 }

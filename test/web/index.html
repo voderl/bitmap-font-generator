@@ -12,7 +12,11 @@
         padding: 16px 24px;
         background: #16213e;
         border-bottom: 1px solid #0f3460;
+        display: flex;
+        align-items: center;
+        gap: 16px;
       }
+      #app-header > div { flex: 1; }
       h1 { font-size: 18px; color: #e94560; }
       p.subtitle { font-size: 13px; color: #888; margin-top: 4px; }
 
@@ -62,8 +66,11 @@
   </head>
   <body>
     <div id="app-header">
-      <h1>Bitmap Font Generator — PixiJS Demo</h1>
-      <p class="subtitle">Chinese bitmap font with lazy-loaded subsets. Font: HYWenHei-55W</p>
+      <div>
+        <h1>Bitmap Font Generator — PixiJS Demo</h1>
+        <p class="subtitle">Chinese bitmap font with lazy-loaded subsets. Font: HYWenHei-55W</p>
+      </div>
+      <a href="/bench.html" style="font-size:12px;color:#e94560;text-decoration:none;padding:4px 10px;border:1px solid #e94560;border-radius:4px;white-space:nowrap;">性能对比测试 →</a>
     </div>
 
     <div id="controls">
