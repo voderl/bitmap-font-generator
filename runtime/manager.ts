@@ -144,8 +144,10 @@ class FontHandle {
 
     // ── Dot placeholder texture (created once, lazy) ──────────────────────────
     if (!this.dotTexture) {
-      const logicalLineHeight = manifest.lineHeight / manifest.resolution;
-      this.dotPx = Math.max(2, Math.round(logicalLineHeight * 0.25));
+      // Use manifest.lineHeight directly (physical px) — PixiJS derives res=1 from
+      // the page filename ('page_N.png' has no @2x suffix), so BitmapFont.lineHeight
+      // = manifest.lineHeight and all layout coords are multiplied by the same scale.
+      this.dotPx = Math.max(2, Math.round(manifest.lineHeight * 0.25));
       const px = this.dotPx;
       const data = new Uint8Array(px * px * 4);
       for (let i = 0; i < px * px; i++) {
@@ -163,7 +165,6 @@ class FontHandle {
     // ── Build font data ───────────────────────────────────────────────────────
     const fontData = new BitmapFontData();
     const res = manifest.resolution;
-    const logicalLineHeight = manifest.lineHeight / res;
     const dp = this.dotPx;
 
     fontData.info = [{ face: manifest.fontName, size: manifest.fontSize }];
@@ -206,7 +207,7 @@ class FontHandle {
           width: dp,
           height: dp,
           xoffset: (adv - dp) / 2,
-          yoffset: (logicalLineHeight - dp) / 2,
+          yoffset: (manifest.lineHeight - dp) / 2,
           xadvance: adv,
           letter: safeFromCodePoint(cp),
           chnl: 15,
