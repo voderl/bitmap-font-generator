@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const fontPath = join(__dirname, '../../font-slice/assets/HYWenHei-55W.ttf');
-const outputDir = join(__dirname, 'web/public/fonts');
+const outputDir = join(__dirname, 'web/public/fonts/HYWenHei');
 
 console.log('Starting bitmap font generation...');
 console.log(`Font: ${fontPath}`);
@@ -20,6 +20,7 @@ const manifest = await bitmapFontGenerator({
   fontSize: 32,
   pageSize: 1024,
   padding: 1,
+  resolution: 2,
 });
 
 console.log(`\nGeneration complete!`);
@@ -27,5 +28,5 @@ console.log(`Font: ${manifest.fontName}`);
 console.log(`Size: ${manifest.fontSize}px, lineHeight: ${manifest.lineHeight}px`);
 console.log(`Generated ${manifest.subsets.length} subsets`);
 console.log(
-  `Total characters: ${manifest.subsets.reduce((sum, s) => sum + s.codePoints.length, 0)}`,
+  `Total characters: ${manifest.subsets.reduce((sum, s) => sum + s.chars.length, 0)}`,
 );

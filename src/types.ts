@@ -3,7 +3,7 @@ export interface GeneratorOptions {
   fontPath: string;
   /** Output directory for generated files */
   outputDir: string;
-  /** Font name used in .fnt files and manifest (defaults to font family from file) */
+  /** Font name used in manifest (defaults to font family from file) */
   fontName?: string;
   /** Base font size in pixels for sprite rendering (default: 32) */
   fontSize?: number;
@@ -11,36 +11,30 @@ export interface GeneratorOptions {
   pageSize?: number;
   /** Padding around each character in pixels (default: 1) */
   padding?: number;
+  /** zlib compression level 0-9 (default: 9) */
+  pngCompression?: number;
+  /** Pixel density multiplier for HiDPI. fontSize and pageSize are multiplied by this value. (default: 1) */
+  resolution?: number;
 }
 
 export interface CharData {
   /** Unicode code point */
   id: number;
-  /** X position in sprite sheet */
   x: number;
-  /** Y position in sprite sheet */
   y: number;
-  /** Width of the character bitmap */
   width: number;
-  /** Height of the character bitmap */
   height: number;
-  /** Horizontal offset when rendering */
   xoffset: number;
-  /** Vertical offset from top of line when rendering */
   yoffset: number;
-  /** How much to advance X after this character */
   xadvance: number;
-  /** Which page (sprite sheet) this character is on */
+  /** Page index within this subset's PNG array */
   page: number;
 }
 
 export interface PageData {
   id: number;
-  /** Filename of the PNG sprite sheet */
   filename: string;
-  /** Width of the sprite sheet in pixels */
   width: number;
-  /** Height of the sprite sheet in pixels */
   height: number;
   chars: CharData[];
 }
@@ -48,21 +42,28 @@ export interface PageData {
 export interface FontMetrics {
   fontName: string;
   fontSize: number;
-  /** Total line height in pixels */
   lineHeight: number;
-  /** Distance from top of line to baseline */
   base: number;
 }
 
-export interface SubsetManifest {
-  /** Index of this subset in the google-fonts unicode range list */
+/** Compact char entry written into manifest.json */
+export interface CharEntry {
   id: number;
-  /** Unicode code points included in this subset */
-  codePoints: number[];
-  /** Relative path to the .fnt file */
-  fnt: string;
-  /** Relative paths to PNG sprite sheet pages */
-  pages: string[];
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ox: number;
+  oy: number;
+  adv: number;
+  /** Page index within this subset's pngs array */
+  page: number;
+}
+
+export interface SubsetManifest {
+  id: number;
+  pngs: string[];
+  chars: CharEntry[];
 }
 
 export interface FontManifest {
@@ -70,5 +71,7 @@ export interface FontManifest {
   fontSize: number;
   lineHeight: number;
   base: number;
+  /** Pixel density multiplier (1 = standard, 2 = HiDPI). Char metrics are in logical pixels. */
+  resolution: number;
   subsets: SubsetManifest[];
 }

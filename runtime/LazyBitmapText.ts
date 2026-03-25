@@ -1,59 +1,44 @@
-import type { BitmapFontManager } from './manager.js';
+import { Container, Text, BitmapText } from 'pixi.js';
+import { BitmapFontManager } from './manager.js';
 
 export interface LazyBitmapTextOptions {
-  text: string;
-  /** Display font size in pixels (default: 16) */
+  fontName: string;
   fontSize?: number;
-  /** PixiJS tint color as 0xRRGGBB (default: 0xffffff) */
   tint?: number;
   /** Text shown while loading (default: '···') */
   placeholder?: string;
-  /** Color of the placeholder text (default: 0x888888) */
   placeholderColor?: number;
-  /** Letter spacing in pixels (default: 0) */
   letterSpacing?: number;
-  /** Max line width before wrapping, 0 = no wrap (default: 0) */
   maxWidth?: number;
-  /** Text alignment (default: 'left') */
   align?: 'left' | 'center' | 'right';
 }
 
 /**
- * A PixiJS display object that lazily loads the required font subsets before
- * rendering text as a BitmapText.
+ * A PixiJS Container that lazily loads bitmap font subsets and renders text.
  *
- * While loading, a plain Text placeholder is shown. Once the font is ready,
- * the placeholder is replaced with a BitmapText.
- *
- * Add `lazyText.container` to the PixiJS stage.
+ * Shows a placeholder while loading, then switches to BitmapText.
+ * Add directly to the stage — no `.container` wrapper needed.
  *
  * @example
  * ```ts
- * const lbt = await LazyBitmapText.create(manager, {
- *   text: '你好世界',
- *   fontSize: 24,
- *   tint: 0xff8800,
- * });
- * app.stage.addChild(lbt.container);
+ * await BitmapFontManager.loadFont('/fonts/HYWenHei/');
+ *
+ * const t = new LazyBitmapText('你好世界', { fontName: 'HYWenHei', fontSize: 24 });
+ * app.stage.addChild(t);
+ * t.text = '新内容'; // auto lazy-loads new subsets
  * ```
  */
-export class LazyBitmapText {
-  readonly container: import('pixi.js').Container;
-  private _manager: BitmapFontManager;
-  private _options: Required<LazyBitmapTextOptions>;
-  private _bitmapText: import('pixi.js').BitmapText | null = null;
-  private _placeholder: import('pixi.js').Text | null = null;
-  private _pixi: typeof import('pixi.js');
+export class LazyBitmapText extends Container {
+  private _text: string;
+  private _opts: Required<LazyBitmapTextOptions>;
+  private _bitmapText: BitmapText | null = null;
+  private _placeholder: Text | null = null;
 
-  private constructor(
-    pixi: typeof import('pixi.js'),
-    manager: BitmapFontManager,
-    options: LazyBitmapTextOptions,
-  ) {
-    this._pixi = pixi;
-    this._manager = manager;
-    this._options = {
-      text: options.text,
+  constructor(text: string, options: LazyBitmapTextOptions) {
+    super();
+    this._text = text;
+    this._opts = {
+      fontName: options.fontName,
       fontSize: options.fontSize ?? 16,
       tint: options.tint ?? 0xffffff,
       placeholder: options.placeholder ?? '···',
@@ -62,94 +47,64 @@ export class LazyBitmapText {
       maxWidth: options.maxWidth ?? 0,
       align: options.align ?? 'left',
     };
-    this.container = new pixi.Container();
+    this._showPlaceholder();
+    this._triggerLoad(text);
   }
 
-  /** Creates and initializes a LazyBitmapText, showing placeholder while loading */
-  static async create(
-    manager: BitmapFontManager,
-    options: LazyBitmapTextOptions,
-  ): Promise<LazyBitmapText> {
-    const pixi = await import('pixi.js');
-    const lbt = new LazyBitmapText(pixi, manager, options);
-    lbt._showPlaceholder();
-    // Start loading in background — don't await so the container is returned immediately
-    lbt._load().catch((err) => console.error('[LazyBitmapText] Load error:', err));
-    return lbt;
+  get text(): string { return this._text; }
+  set text(value: string) {
+    if (this._text === value) return;
+    this._text = value;
+    this._showPlaceholder();
+    this._triggerLoad(value);
+  }
+
+  get fontSize(): number { return this._opts.fontSize; }
+  set fontSize(v: number) {
+    this._opts.fontSize = v;
+    if (this._bitmapText) this._bitmapText.fontSize = v;
+    if (this._placeholder) (this._placeholder.style as { fontSize: number }).fontSize = v;
+  }
+
+  get tint(): number { return this._opts.tint; }
+  set tint(v: number) {
+    this._opts.tint = v;
+    if (this._bitmapText) this._bitmapText.tint = v;
   }
 
   private _showPlaceholder(): void {
-    const { Text } = this._pixi;
+    this._bitmapText?.destroy();
+    this._bitmapText = null;
     this._placeholder?.destroy();
-    this._placeholder = new Text(this._options.placeholder, {
-      fontSize: this._options.fontSize,
-      fill: this._options.placeholderColor,
+    this._placeholder = new Text(this._opts.placeholder, {
+      fontSize: this._opts.fontSize,
+      fill: this._opts.placeholderColor,
     });
-    this.container.addChild(this._placeholder);
+    this.addChild(this._placeholder);
   }
 
-  private async _load(): Promise<void> {
-    await this._manager.ensureLoaded(this._options.text);
-    this._renderBitmapText();
+  private _triggerLoad(text: string): void {
+    BitmapFontManager.load(this._opts.fontName, text)
+      .then(() => {
+        if (this._text !== text) return; // text changed while loading
+        this._renderBitmapText();
+      })
+      .catch((err) => console.error('[LazyBitmapText]', err));
   }
 
   private _renderBitmapText(): void {
-    const { BitmapText } = this._pixi;
-    const { text, fontSize, tint, letterSpacing, maxWidth, align } = this._options;
-
-    // Remove placeholder
-    if (this._placeholder) {
-      this.container.removeChild(this._placeholder);
-      this._placeholder.destroy();
-      this._placeholder = null;
-    }
-
-    // Remove old bitmap text
-    if (this._bitmapText) {
-      this.container.removeChild(this._bitmapText);
-      this._bitmapText.destroy();
-      this._bitmapText = null;
-    }
-
-    this._bitmapText = new BitmapText(text, {
-      fontName: this._manager.fontName,
+    const { fontName, fontSize, tint, letterSpacing, maxWidth, align } = this._opts;
+    this._placeholder?.destroy();
+    this._placeholder = null;
+    this._bitmapText?.destroy();
+    this._bitmapText = new BitmapText(this._text, {
+      fontName,
       fontSize,
       tint,
       letterSpacing,
       maxWidth: maxWidth || undefined,
       align,
     });
-    this.container.addChild(this._bitmapText);
-  }
-
-  /** Update the text content (triggers loading if new characters are needed) */
-  async setText(newText: string): Promise<void> {
-    this._options.text = newText;
-    this._showPlaceholder();
-    await this._load();
-  }
-
-  get fontSize(): number { return this._options.fontSize; }
-  set fontSize(v: number) {
-    this._options.fontSize = v;
-    if (this._bitmapText) this._bitmapText.fontSize = v;
-    if (this._placeholder) (this._placeholder.style as { fontSize: number }).fontSize = v;
-  }
-
-  get tint(): number { return this._options.tint; }
-  set tint(v: number) {
-    this._options.tint = v;
-    if (this._bitmapText) this._bitmapText.tint = v;
-  }
-
-  get x(): number { return this.container.x; }
-  set x(v: number) { this.container.x = v; }
-  get y(): number { return this.container.y; }
-  set y(v: number) { this.container.y = v; }
-
-  destroy(): void {
-    this._bitmapText?.destroy();
-    this._placeholder?.destroy();
-    this.container.destroy({ children: true });
+    this.addChild(this._bitmapText);
   }
 }

@@ -9,6 +9,7 @@ interface RenderOptions extends FontMetrics {
   padding: number;
   outputDir: string;
   prefix: string;
+  pngCompression: number;
 }
 
 /**
@@ -26,7 +27,7 @@ export function registerFont(fontPath: string, fontName: string): void {
  * Returns an array of PageData describing each generated PNG file.
  */
 export async function renderSpriteSheets(options: RenderOptions): Promise<PageData[]> {
-  const { fontName, fontSize, lineHeight, base, codePoints, pageSize, padding, outputDir, prefix } = options;
+  const { fontName, fontSize, lineHeight, base, codePoints, pageSize, padding, outputDir, prefix, pngCompression } = options;
 
   const pages: PageData[] = [];
   let pageId = 0;
@@ -64,7 +65,8 @@ export async function renderSpriteSheets(options: RenderOptions): Promise<PageDa
     const croppedCtx = croppedCanvas.getContext('2d');
     croppedCtx.drawImage(canvas, 0, 0);
 
-    const buffer = croppedCanvas.toBuffer('image/png');
+    const rawBuffer = croppedCanvas.toBuffer('image/png');
+    const buffer = await compressPng(rawBuffer, pngCompression);
     writeFileSync(join(outputDir, filename), buffer);
     pages.push({ id: pageId, filename, width: pageSize, height: usedHeight, chars: pageChars });
     pageId++;
@@ -115,6 +117,13 @@ export async function renderSpriteSheets(options: RenderOptions): Promise<PageDa
 
   await flushPage();
   return pages;
+}
+
+async function compressPng(input: Buffer, compressionLevel: number): Promise<Buffer> {
+  const sharp = (await import('sharp')).default;
+  return sharp(input)
+    .png({ palette: true, colors: 4, compressionLevel })
+    .toBuffer();
 }
 
 function setupContext(ctx: SKRSContext2D, fontName: string, fontSize: number): void {

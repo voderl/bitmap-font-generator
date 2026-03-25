@@ -1,8 +1,20 @@
+export interface CharMetrics {
+  id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  ox: number;
+  oy: number;
+  adv: number;
+  /** Page index within this subset's pngs array */
+  page: number;
+}
+
 export interface SubsetManifest {
   id: number;
-  codePoints: number[];
-  fnt: string;
-  pages: string[];
+  pngs: string[];
+  chars: CharMetrics[];
 }
 
 export interface FontManifest {
@@ -10,26 +22,7 @@ export interface FontManifest {
   fontSize: number;
   lineHeight: number;
   base: number;
+  /** 1 = standard, 2 = HiDPI. Char metrics are in logical pixels; textures are resolution× larger. */
+  resolution: number;
   subsets: SubsetManifest[];
-}
-
-export interface ParsedFnt {
-  fontName: string;
-  fontSize: number;
-  lineHeight: number;
-  base: number;
-  pages: { id: number; file: string }[];
-  chars: FntChar[];
-}
-
-export interface FntChar {
-  id: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  xoffset: number;
-  yoffset: number;
-  xadvance: number;
-  page: number;
 }

@@ -1,5 +1,5 @@
-import { Application, BitmapText, Text, Container } from 'pixi.js';
-import { BitmapFontManager } from '../../runtime/manager.js';
+import { Application, Text, Container } from 'pixi.js';
+import { BitmapFontManager, LazyBitmapText } from '../../runtime/index.js';
 
 // ─── Status UI ────────────────────────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ function setStatus(msg: string) { statusEl.textContent = msg; }
 
 const app = new Application({
   width: 1200,
-  height: 720,
+  height: 440,
   backgroundColor: 0x1a1a2e,
   antialias: true,
   resolution: window.devicePixelRatio || 1,
@@ -18,15 +18,13 @@ const app = new Application({
 });
 document.getElementById('canvas-container')!.appendChild(app.view as HTMLCanvasElement);
 
-// ─── Font Manager ─────────────────────────────────────────────────────────────
+// ─── Load Font ────────────────────────────────────────────────────────────────
 
-const manager = new BitmapFontManager({ baseUrl: '/fonts/' });
-
-setStatus('Loading font manifest...');
-manager.loadManifest('HYWenHei_manifest.json').then(() => {
-  setStatus('Manifest loaded — starting demo...');
+setStatus('Loading font...');
+BitmapFontManager.loadFont('/fonts/HYWenHei/').then(() => {
+  setStatus('Font loaded — starting demo...');
   runDemo();
-}).catch(err => setStatus(`Error loading manifest: ${err.message}`));
+}).catch(err => setStatus(`Error loading font: ${err.message}`));
 
 // ─── Demo ─────────────────────────────────────────────────────────────────────
 
@@ -50,26 +48,13 @@ function runDemo() {
     label.y = yOffset;
     demoContainer.addChild(label);
 
-    // Placeholder while loading
-    const placeholder = new Text('[Loading…]', { fontSize: row.fontSize * 0.5, fill: 0x555577 });
-    placeholder.y = yOffset + 14;
-    demoContainer.addChild(placeholder);
-
-    const capturedY = yOffset + 14;
-    manager.ensureLoaded(row.text).then(() => {
-      if (placeholder.destroyed) return;
-      placeholder.destroy();
-
-      const bt = new BitmapText(row.text, {
-        fontName: manager.fontName,
-        fontSize: row.fontSize,
-        tint: row.tint,
-      });
-      bt.y = capturedY;
-      demoContainer.addChild(bt);
-    }).catch(err => {
-      placeholder.text = `[Error: ${err.message}]`;
+    const bt = new LazyBitmapText(row.text, {
+      fontName: 'HYWenHei',
+      fontSize: row.fontSize,
+      tint: row.tint,
     });
+    bt.y = yOffset + 14;
+    demoContainer.addChild(bt);
 
     yOffset += row.fontSize + 28;
   }
@@ -77,14 +62,14 @@ function runDemo() {
   // ─── Interactive Section ──────────────────────────────────────────────────
 
   const interactiveContainer = new Container();
-  interactiveContainer.x = 40;
-  interactiveContainer.y = 540;
-  app.stage.addChild(interactiveContainer);
+  interactiveContainer.y = yOffset + 20;
+  demoContainer.addChild(interactiveContainer);
 
-  new Text('Interactive:', { fontSize: 12, fill: 0x667788 });
+  const interactiveLabel = new Text('自定义配置', { fontSize: 11, fill: 0x667788 });
+  interactiveLabel.y = 0;
+  interactiveContainer.addChild(interactiveLabel);
 
-  let activeBt: BitmapText | null = null;
-  let activePlaceholder: Text | null = null;
+  let activeLazyText: LazyBitmapText | null = null;
 
   function renderInteractive() {
     const text = (document.getElementById('textInput') as HTMLInputElement).value;
@@ -92,36 +77,17 @@ function runDemo() {
     const colorHex = (document.getElementById('colorInput') as HTMLInputElement).value;
     const tint = parseInt(colorHex.replace('#', ''), 16);
     const align = (document.getElementById('alignInput') as HTMLSelectElement).value as 'left' | 'center' | 'right';
-    const maxWidth = parseInt((document.getElementById('maxWidthInput') as HTMLInputElement).value) || 0;
-
-    activeBt?.destroy();
-    activeBt = null;
-    activePlaceholder?.destroy();
-
-    activePlaceholder = new Text('Loading…', { fontSize: 13, fill: 0x555577 });
-    activePlaceholder.y = 0;
-    interactiveContainer.addChild(activePlaceholder);
-
-    setStatus(`Loading subsets for: "${text.slice(0, 40)}"`);
-
-    manager.ensureLoaded(text).then(() => {
-      activePlaceholder?.destroy();
-      activePlaceholder = null;
-
-      activeBt = new BitmapText(text, {
-        fontName: manager.fontName,
-        fontSize,
-        tint,
-        align,
-        maxWidth: maxWidth || undefined,
-      });
-      activeBt.y = 0;
-      interactiveContainer.addChild(activeBt);
-      setStatus(`✓ ${text.length} chars · ${fontSize}px · tint #${tint.toString(16).padStart(6, '0')}`);
-    }).catch(err => {
-      if (activePlaceholder) activePlaceholder.text = `Error: ${err.message}`;
-      setStatus(`Error: ${err.message}`);
+    activeLazyText?.destroy();
+    activeLazyText = new LazyBitmapText(text, {
+      fontName: 'HYWenHei',
+      fontSize,
+      tint,
+      align,
     });
+    activeLazyText.y = 14;
+    interactiveContainer.addChild(activeLazyText);
+
+    setStatus(`Rendering: "${text.slice(0, 40)}"`);
   }
 
   let debounceTimer: ReturnType<typeof setTimeout>;
@@ -137,10 +103,6 @@ function runDemo() {
   });
   document.getElementById('colorInput')!.addEventListener('input', () => debounce(renderInteractive));
   document.getElementById('alignInput')!.addEventListener('change', renderInteractive);
-  document.getElementById('maxWidthInput')!.addEventListener('input', (e) => {
-    document.getElementById('maxWidthLabel')!.textContent = (e.target as HTMLInputElement).value;
-    debounce(renderInteractive);
-  });
 
   renderInteractive();
 }
