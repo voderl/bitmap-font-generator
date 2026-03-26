@@ -8,8 +8,7 @@ const TOP = 26;
 const BOT = 10;
 
 // ─── Benchmark profile ────────────────────────────────────────────────────────
-const TEXT_FONT_FAMILY =
-  "'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'SimHei', sans-serif";
+const TEXT_FONT_FAMILY = 'HYWenHei';
 
 const FONT_SIZES = [14, 16, 18, 22, 28, 36, 48];
 const TINTS = [
@@ -106,7 +105,7 @@ function nextFrame(): Promise<void> {
 }
 
 function sliderToCount(v: number): number {
-  return Math.round(Math.exp(Math.log(200) + (Math.log(5000) - Math.log(200)) * v / 100));
+  return Math.round(Math.exp(Math.log(200) + (Math.log(10000) - Math.log(200)) * v / 100));
 }
 
 function estimateTextBounds(text: string, fontSize: number): { approxW: number; approxH: number } {
@@ -197,11 +196,26 @@ function prepareEmptyScene(nextMode: Mode): void {
   statDraws.className = 'stat-value';
 }
 
+// ─── Web font (loaded lazily on first Text mode switch) ──────────────────────
+let webFontReady = false;
+async function ensureWebFont(): Promise<void> {
+  if (webFontReady) return;
+  const face = await new FontFace('HYWenHei', 'url(/fonts/HYWenHei-55W.ttf)').load();
+  document.fonts.add(face);
+  webFontReady = true;
+}
+
 // ─── Build / Rebuild ──────────────────────────────────────────────────────────
 async function rebuild(newMode: Mode, count: number): Promise<void> {
   const buildId = ++buildSerial;
   isRebuilding = true;
   prepareEmptyScene(newMode);
+
+  if (newMode === 'text') {
+    statCreate.textContent = '加载 Web 字体...';
+    await ensureWebFont();
+    if (buildId !== buildSerial) return;
+  }
 
   await nextFrame();
   if (buildId !== buildSerial) return;
@@ -357,7 +371,7 @@ statCreate.className = 'stat-value warn';
 statBuildFrame.textContent = '等待中...';
 statBuildFrame.className = 'stat-value warn';
 
-BitmapFontManager.loadFont('/fonts/HYWenHei/').then(async () => {
+BitmapFontManager.loadFont('/fonts/HYWenHei/').then(() => {
   requestRebuild('bitmap', currentCount());
 }).catch((err: Error) => {
   statCreate.textContent = `字体加载失败: ${err.message}`;
