@@ -12,7 +12,8 @@ export type { GeneratorOptions, FontManifest, SubsetManifest, FontMetrics, CharD
  *
  * Output files (written to outputDir/):
  *   manifest.json           — char metrics + subset index, loaded by BitmapFontManager
- *   {fontName}_{i}_{p}.webp — sprite sheet for subset i, page p
+ *   {fontName}_{i}.png      — sprite sheet when subset i fits in one page
+ *   {fontName}_{i}_{p}.png  — sprite sheet for subset i, page p when multiple pages are needed
  */
 export async function bitmapFontGenerator(options: GeneratorOptions): Promise<FontManifest> {
   const { fontPath, outputDir } = options;

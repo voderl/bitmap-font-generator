@@ -1,5 +1,5 @@
 import { createCanvas, GlobalFonts, SKRSContext2D } from '@napi-rs/canvas';
-import { writeFileSync } from 'fs';
+import { renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { CharData, PageData, FontMetrics } from './types.js';
 
@@ -54,10 +54,17 @@ export async function renderSpriteSheets(options: RenderOptions): Promise<PageDa
   let ctx = canvas.getContext('2d');
   setupContext(ctx, fontName, fontSize);
   let pageChars: CharData[] = [];
+  const baseFilename = `${prefix}.png`;
+  const firstIndexedFilename = `${prefix}_0.png`;
 
   const flushPage = async () => {
     if (pageChars.length === 0) return;
-    const filename = `${prefix}_${pageId}.png`;
+    if (pageId > 0 && pages.length === 1 && pages[0].filename === baseFilename) {
+      renameSync(join(outputDir, baseFilename), join(outputDir, firstIndexedFilename));
+      pages[0].filename = firstIndexedFilename;
+    }
+
+    const filename = pageId === 0 ? baseFilename : `${prefix}_${pageId}.png`;
 
     // Crop to actual used height to avoid wasting space
     const usedHeight = Math.min(y + (lineHeight + padding * 2) + padding, pageSize);

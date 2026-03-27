@@ -48,9 +48,8 @@ Output:
 ```
 public/fonts/MyFont/
   manifest.json            # char metrics + subset index
-  MyFont_0_0.png           # subset 0, page 0
-  MyFont_1_0.png           # subset 1, page 0
-  MyFont_1_1.png           # subset 1, page 1
+  MyFont_0.png             # subset 0
+  MyFont_1.png             # subset 1
   ...
 ```
 
