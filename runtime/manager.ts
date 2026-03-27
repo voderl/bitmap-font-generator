@@ -1,3 +1,4 @@
+import { Assets, BitmapFont, Cache, Rectangle, Texture } from 'pixi.js';
 import type { FontManifest, SubsetManifest } from './types.js';
 
 class FontHandle {
@@ -12,11 +13,9 @@ class FontHandle {
   /** Code points that have been requested by at least one LazyBitmapText. */
   private readonly requestedCps = new Set<number>();
   private nextGlobalPage = 1; // page 0 is reserved for the dot texture
-  private bitmapFont: import('pixi.js').BitmapFont | null = null;
-  private dotTexture: import('pixi.js').Texture | null = null;
+  private bitmapFont: BitmapFont | null = null;
+  private dotTexture: Texture | null = null;
   private dotPx = 4;
-  /** Cached PixiJS module reference to avoid dynamic import in sync methods. */
-  private pixi!: typeof import('pixi.js');
 
   constructor(baseUrl: string, manifest: FontManifest) {
     this.fontName = manifest.fontName;
@@ -35,33 +34,33 @@ class FontHandle {
    * Creates a minimal BitmapFont with just the dot-placeholder texture (page 0)
    * and zero char entries. Dot chars and real chars are added incrementally later.
    */
-  async init(): Promise<void> {
-    this.pixi = await import('pixi.js');
-    const { BitmapFont, BitmapFontData, Texture, BaseTexture } = this.pixi;
+  init(): void {
     const manifest = this.manifest;
 
     // Create dot placeholder texture (once)
     this.dotPx = Math.max(2, Math.round(manifest.lineHeight * 0.25));
     const px = this.dotPx;
-    const data = new Uint8Array(px * px * 4);
-    for (let i = 0; i < px * px; i++) {
-      data[i * 4]     = 255;
-      data[i * 4 + 1] = 255;
-      data[i * 4 + 2] = 255;
-      data[i * 4 + 3] = 153; // ~60% alpha
-    }
-    this.dotTexture = new Texture(BaseTexture.fromBuffer(data, px, px));
+    const canvas = document.createElement('canvas');
+    canvas.width = px;
+    canvas.height = px;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fillRect(0, 0, px, px);
+    this.dotTexture = Texture.from(canvas);
 
     // Install minimal font: dot texture at page 0, no chars
-    const fontData = new BitmapFontData();
-    fontData.info = [{ face: manifest.fontName, size: manifest.fontSize }];
-    fontData.common = [{ lineHeight: manifest.lineHeight }];
-    fontData.distanceField = [];
-    fontData.kerning = [];
-    fontData.page = [{ id: 0, file: 'dot.png' }];
-    fontData.char = [];
-
-    this.bitmapFont = BitmapFont.install(fontData, [this.dotTexture], false);
+    this.bitmapFont = new BitmapFont({
+      data: {
+        fontFamily: manifest.fontName,
+        fontSize: manifest.fontSize,
+        lineHeight: manifest.lineHeight,
+        baseLineOffset: 0,
+        chars: {},
+        pages: [{ id: 0, file: 'dot.png' }],
+      },
+      textures: [this.dotTexture],
+    });
+    Cache.set(`${manifest.fontName}-bitmap`, this.bitmapFont);
   }
 
   async load(text: string): Promise<void> {
@@ -133,21 +132,20 @@ class FontHandle {
   private addDotChars(cps: number[]): void {
     const font = this.bitmapFont;
     if (!font || !this.dotTexture) return;
-    const { Texture, Rectangle } = this.pixi;
     const dp = this.dotPx;
     const lh = this.manifest.lineHeight;
-    const dotBase = this.dotTexture.baseTexture;
 
     for (const cp of cps) {
-      if (font.chars[cp]) continue; // already has an entry
+      const char = String.fromCodePoint(cp);
+      if (font.chars[char]) continue; // already has an entry
       const adv = this.cpToAdv.get(cp)!;
-      font.chars[cp] = {
+      font.chars[char] = {
+        id: cp,
         xOffset: (adv - dp) / 2,
         yOffset: (lh - dp) / 2,
         xAdvance: adv,
         kerning: {},
-        texture: new Texture(dotBase, new Rectangle(0, 0, dp, dp)),
-        page: 0,
+        texture: new Texture({ source: this.dotTexture.source, frame: new Rectangle(0, 0, dp, dp) }),
       };
     }
   }
@@ -157,7 +155,6 @@ class FontHandle {
    * existing BitmapFont, replacing any dot placeholders. O(subset chars).
    */
   private async doLoadSubset(subset: SubsetManifest): Promise<void> {
-    const { Assets, Texture, Rectangle } = this.pixi;
     const font = this.bitmapFont!;
     const res = this.manifest.resolution;
 
@@ -166,27 +163,29 @@ class FontHandle {
     for (let i = 0; i < subset.pngs.length; i++) {
       const pageId = this.nextGlobalPage++;
       pageRemap.set(i, pageId);
-      const tex = await Assets.load<import('pixi.js').Texture>(this.resolve(subset.pngs[i]));
+      const tex = await Assets.load<Texture>(this.resolve(subset.pngs[i]));
       if (res !== 1) {
-        tex.baseTexture.setResolution(res);
+        tex.source.resolution = res;
+        tex.source.update();
       }
-      font.pageTextures[pageId] = tex;
+      font.pages[pageId] = { texture: tex };
     }
 
     // Replace dot entries with real glyph entries
     for (const ch of subset.chars) {
       const pageId = pageRemap.get(ch.page) ?? ch.page;
-      const pageTex = font.pageTextures[pageId];
-      font.chars[ch.id] = {
+      const pageTex = font.pages[pageId].texture;
+      const char = String.fromCodePoint(ch.id);
+      font.chars[char] = {
+        id: ch.id,
         xOffset: ch.ox,
         yOffset: ch.oy,
         xAdvance: ch.adv,
         kerning: {},
-        texture: new Texture(
-          pageTex.baseTexture,
-          new Rectangle(ch.x / res, ch.y / res, ch.w / res, ch.h / res),
-        ),
-        page: pageId,
+        texture: new Texture({
+          source: pageTex.source,
+          frame: new Rectangle(ch.x / res, ch.y / res, ch.w / res, ch.h / res),
+        }),
       };
     }
 
@@ -222,7 +221,7 @@ export class BitmapFontManager {
     }
     const manifest = (await resp.json()) as FontManifest;
     const handle = new FontHandle(baseUrl, manifest);
-    await handle.init();
+    handle.init();
     this.registry.set(manifest.fontName, handle);
     return manifest.fontName;
   }

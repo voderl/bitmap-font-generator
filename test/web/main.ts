@@ -8,7 +8,8 @@ function setStatus(msg: string) { statusEl.textContent = msg; }
 
 // ─── PixiJS App ───────────────────────────────────────────────────────────────
 
-const app = new Application({
+const app = new Application();
+await app.init({
   width: 1200,
   height: 440,
   backgroundColor: 0x1a1a2e,
@@ -16,7 +17,7 @@ const app = new Application({
   resolution: window.devicePixelRatio || 1,
   autoDensity: true,
 });
-document.getElementById('canvas-container')!.appendChild(app.view as HTMLCanvasElement);
+document.getElementById('canvas-container')!.appendChild(app.canvas);
 
 // ─── Load Font ────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ function runDemo() {
 
   let yOffset = 0;
   for (const row of rows) {
-    const label = new Text(row.label, { fontSize: 11, fill: 0x667788 });
+    const label = new Text({ text: row.label, style: { fontSize: 11, fill: 0x667788 } });
     label.y = yOffset;
     demoContainer.addChild(label);
 
@@ -65,7 +66,7 @@ function runDemo() {
   interactiveContainer.y = yOffset + 20;
   demoContainer.addChild(interactiveContainer);
 
-  const interactiveLabel = new Text('自定义配置', { fontSize: 11, fill: 0x667788 });
+  const interactiveLabel = new Text({ text: '自定义配置', style: { fontSize: 11, fill: 0x667788 } });
   interactiveLabel.y = 0;
   interactiveContainer.addChild(interactiveLabel);
 

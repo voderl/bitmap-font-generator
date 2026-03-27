@@ -1,4 +1,23 @@
-import type { ParsedFnt, FntChar } from './types.js';
+export interface FntChar {
+  id: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  xoffset: number;
+  yoffset: number;
+  xadvance: number;
+  page: number;
+}
+
+export interface ParsedFnt {
+  fontName: string;
+  fontSize: number;
+  lineHeight: number;
+  base: number;
+  pages: { id: number; file: string }[];
+  chars: FntChar[];
+}
 
 /** Parses a BMFont text-format .fnt string. */
 export function parseFnt(content: string): ParsedFnt {

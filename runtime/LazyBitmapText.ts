@@ -1,5 +1,7 @@
-import { BitmapFont, BitmapText } from 'pixi.js';
+import { BitmapText } from 'pixi.js';
 import { BitmapFontManager } from './manager.js';
+
+import type { TextOptions, DestroyOptions } from 'pixi.js';
 
 export interface LazyBitmapTextOptions {
   fontName: string;
@@ -15,11 +17,11 @@ export interface LazyBitmapTextOptions {
  *
  * While subsets are downloading, unloaded glyphs render as dot placeholders
  * (registered in the BitmapFont with the correct advance width so layout never
- * shifts). As each subset finishes loading, `dirty` is set so PixiJS re-draws
- * the text with the real glyphs on the next frame.
+ * shifts). As each subset finishes loading, `_didTextUpdate` is set so PixiJS
+ * re-draws the text with the real glyphs on the next frame.
  *
- * `instanceof BitmapText` is true. All BitmapText properties (textWidth,
- * textHeight, anchor, …) work natively.
+ * `instanceof BitmapText` is true. All BitmapText properties (anchor, …) work
+ * natively.
  *
  * @example
  * ```ts
@@ -32,6 +34,7 @@ export interface LazyBitmapTextOptions {
  */
 export class LazyBitmapText extends BitmapText {
   private _rawText: string;
+  private _fontId: string;
   private _trackedCps = new Set<number>();
   private _unsubscribe: (() => void) | null = null;
   private _initialized = false;
@@ -39,8 +42,27 @@ export class LazyBitmapText extends BitmapText {
   private _fullyLoaded = false;
 
   constructor(text: string, options: LazyBitmapTextOptions) {
-    super(text, options);
+    const style: TextOptions['style'] = {
+      fontFamily: options.fontName,
+      fill: options.tint ?? 0xffffff,
+    };
+    if (options.fontSize != null) {
+      style.fontSize = options.fontSize;
+    }
+    if (options.letterSpacing != null) {
+      style.letterSpacing = options.letterSpacing;
+    }
+    if (options.align != null) {
+      style.align = options.align;
+    }
+    if (options.maxWidth != null) {
+      style.wordWrap = true;
+      style.breakWords = true;
+      style.wordWrapWidth = options.maxWidth;
+    }
+    super({ text, style });
     this._rawText = text;
+    this._fontId = options.fontName;
     this._initialized = true;
     this._refreshTrackedCps();
     // Eagerly check: if all chars are already loaded (e.g. after warmup), skip
@@ -54,16 +76,18 @@ export class LazyBitmapText extends BitmapText {
 
   private _subscribe(): void {
     this._unsubscribe?.();
-    this._unsubscribe = BitmapFontManager.subscribe(this._fontName, (updatedCps) => {
+    this._unsubscribe = BitmapFontManager.subscribe(this._fontId, (updatedCps) => {
       // Skip instances whose text is already fully rendered with real glyphs.
       if (this._fullyLoaded || !this._dependsOnAny(updatedCps)) return;
-      this.dirty = true;
+      // Signal the render pipe to re-layout on next frame
+      this._didTextUpdate = true;
+      this.onViewUpdate();
       this._checkFullyLoaded();
     });
   }
 
   private _loadCurrentText(): void {
-    BitmapFontManager.load(this._fontName, this._rawText).catch((err) => {
+    BitmapFontManager.load(this._fontId, this._rawText).catch((err) => {
       console.error('[LazyBitmapText]', err);
     });
   }
@@ -72,7 +96,7 @@ export class LazyBitmapText extends BitmapText {
     this._trackedCps.clear();
     for (const ch of this._rawText) {
       const cp = ch.codePointAt(0);
-      if (cp !== undefined && BitmapFontManager.getCharAdvance(this._fontName, cp) !== undefined) {
+      if (cp !== undefined && BitmapFontManager.getCharAdvance(this._fontId, cp) !== undefined) {
         this._trackedCps.add(cp);
       }
     }
@@ -92,27 +116,18 @@ export class LazyBitmapText extends BitmapText {
    */
   private _checkFullyLoaded(): void {
     for (const cp of this._trackedCps) {
-      if (!BitmapFontManager.isCharLoaded(this._fontName, cp)) return;
+      if (!BitmapFontManager.isCharLoaded(this._fontId, cp)) return;
     }
     this._fullyLoaded = true;
     this._unsubscribe?.();
     this._unsubscribe = null;
   }
 
-  protected override validate(): void {
-    const font = BitmapFont.available[this._fontName];
-    if (!font) throw new Error(`Missing BitmapFont "${this._fontName}"`);
-    // BitmapFontManager replaces the global font object whenever placeholder or
-    // subset data changes. LazyBitmapText does its own targeted invalidation, so
-    // only respect the local dirty flag here instead of forcing a full redraw for
-    // every instance that shares this font.
-    if (this.dirty) this.updateText();
-  }
-
   override get text(): string { return this._rawText; }
-  override set text(value: string) {
-    this._rawText = value;
-    super.text = value;
+  override set text(value: string | number) {
+    const str = String(value);
+    this._rawText = str;
+    super.text = str;
     if (!this._initialized) return;
 
     this._fullyLoaded = false;
@@ -125,9 +140,9 @@ export class LazyBitmapText extends BitmapText {
     }
   }
 
-  override destroy(...args: Parameters<BitmapText['destroy']>): void {
+  override destroy(options?: DestroyOptions | boolean): void {
     this._unsubscribe?.();
     this._unsubscribe = null;
-    super.destroy(...args);
+    super.destroy(options);
   }
 }

@@ -1,5 +1,7 @@
-import { Application, BitmapFont, Container, Graphics, Text } from 'pixi.js';
+import { Application, Cache, Container, Graphics, Text } from 'pixi.js';
 import { BitmapFontManager, LazyBitmapText } from '../../runtime/index.js';
+
+import type { BitmapFont } from 'pixi.js';
 
 // ─── Canvas size ──────────────────────────────────────────────────────────────
 const W = window.innerWidth;
@@ -67,7 +69,8 @@ const statCount      = document.getElementById('stat-count')!;
 const statDraws      = document.getElementById('stat-draws')!;
 const statBuildFrame = document.getElementById('stat-change-frame')!;
 // ─── PixiJS app ───────────────────────────────────────────────────────────────
-const app = new Application({
+const app = new Application();
+await app.init({
   width: W,
   height: H,
   backgroundColor: 0x080c14,
@@ -75,7 +78,7 @@ const app = new Application({
   resolution: window.devicePixelRatio || 1,
   autoDensity: true,
 });
-document.getElementById('canvas-container')!.appendChild(app.view as HTMLCanvasElement);
+document.getElementById('canvas-container')!.appendChild(app.canvas);
 
 // ─── Benchmark object ─────────────────────────────────────────────────────────
 interface Particle {
@@ -88,13 +91,14 @@ app.stage.addChild(bg);
 
 function drawBg(mode: Mode): void {
   bg.clear();
-  bg.beginFill(mode === 'text' ? 0x0d1017 : 0x0b1510).drawRect(0, 0, W, H).endFill();
+  bg.rect(0, 0, W, H);
+  bg.fill(mode === 'text' ? 0x0d1017 : 0x0b1510);
 }
 
 const particleLayer = new Container();
 app.stage.addChild(particleLayer);
 
-const watermark = new Text('', { fontSize: 12, fill: 0x1e3040, fontFamily: 'monospace' });
+const watermark = new Text({ text: '', style: { fontSize: 12, fill: 0x1e3040, fontFamily: 'monospace' } });
 watermark.x = 6;
 watermark.y = 5;
 app.stage.addChild(watermark);
@@ -122,10 +126,13 @@ function estimateTextBounds(text: string, fontSize: number): { approxW: number; 
 
 function createObject(mode: Mode, sample: BenchSample): Text | LazyBitmapText {
   return mode === 'text'
-    ? new Text(sample.text, {
-        fontSize: sample.fontSize,
-        fill: sample.tint,
-        fontFamily: TEXT_FONT_FAMILY,
+    ? new Text({
+        text: sample.text,
+        style: {
+          fontSize: sample.fontSize,
+          fill: sample.tint,
+          fontFamily: TEXT_FONT_FAMILY,
+        },
       })
     : new LazyBitmapText(sample.text, {
         fontName: 'HYWenHei',
@@ -247,9 +254,10 @@ async function rebuild(newMode: Mode, count: number): Promise<void> {
     captureBuildFrame = true;
     lastAutoRebuildAt = performance.now();
 
-    const loadedAtlasPages = newMode === 'bitmap'
-      ? Object.keys(BitmapFont.available.HYWenHei?.pageTextures ?? {}).length
-      : 0;
+    const font = newMode === 'bitmap'
+      ? Cache.get<BitmapFont>('HYWenHei-bitmap')
+      : null;
+    const loadedAtlasPages = font?.pages?.length ?? 0;
 
     const estDraws = newMode === 'text'
       ? `~${Math.ceil(count / SPRITE_BATCH_SIZE)} (独立纹理, ${SPRITE_BATCH_SIZE}个/call)`
