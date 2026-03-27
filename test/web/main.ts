@@ -49,10 +49,13 @@ function runDemo() {
     label.y = yOffset;
     demoContainer.addChild(label);
 
-    const bt = new LazyBitmapText(row.text, {
-      fontName: 'HYWenHei',
-      fontSize: row.fontSize,
-      tint: row.tint,
+    const bt = new LazyBitmapText({
+      text: row.text,
+      style: {
+        fontFamily: 'HYWenHei',
+        fontSize: row.fontSize,
+        fill: row.tint,
+      },
     });
     bt.y = yOffset + 14;
     demoContainer.addChild(bt);
@@ -79,12 +82,16 @@ function runDemo() {
     const tint = parseInt(colorHex.replace('#', ''), 16);
     const align = (document.getElementById('alignInput') as HTMLSelectElement).value as 'left' | 'center' | 'right';
     activeLazyText?.destroy();
-    activeLazyText = new LazyBitmapText(text, {
-      fontName: 'HYWenHei',
-      fontSize,
-      tint,
-      align,
-      maxWidth: 600,
+    activeLazyText = new LazyBitmapText({
+      text,
+      style: {
+        fontFamily: 'HYWenHei',
+        fontSize,
+        fill: tint,
+        align,
+        wordWrap: true,
+        wordWrapWidth: 600,
+      },
     });
     activeLazyText.y = 14;
     interactiveContainer.addChild(activeLazyText);

@@ -134,10 +134,13 @@ function createObject(mode: Mode, sample: BenchSample): Text | LazyBitmapText {
           fontFamily: TEXT_FONT_FAMILY,
         },
       })
-    : new LazyBitmapText(sample.text, {
-        fontName: 'HYWenHei',
-        fontSize: sample.fontSize,
-        tint: sample.tint,
+    : new LazyBitmapText({
+        text: sample.text,
+        style: {
+          fontFamily: 'HYWenHei',
+          fontSize: sample.fontSize,
+          fill: sample.tint,
+        },
       });
 }
 

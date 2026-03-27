@@ -1,15 +1,22 @@
-import { BitmapText } from 'pixi.js';
+import { BitmapText, ensureTextOptions } from 'pixi.js';
 import { BitmapFontManager } from './manager.js';
 
-import type { TextOptions, DestroyOptions } from 'pixi.js';
+import type { TextOptions, DestroyOptions, TextString, TextStyleOptions } from 'pixi.js';
 
-export interface LazyBitmapTextOptions {
-  fontName: string;
-  fontSize?: number;
-  tint?: number;
-  letterSpacing?: number;
-  maxWidth?: number;
-  align?: 'left' | 'center' | 'right';
+export type LazyBitmapTextStyle = Omit<TextStyleOptions, 'fontFamily'> & {
+  fontFamily: string;
+};
+
+export type LazyBitmapTextOptions = Omit<TextOptions, 'style'> & {
+  style: LazyBitmapTextStyle;
+};
+
+function resolveFontId(fontFamily: unknown): string {
+  if (typeof fontFamily !== 'string' || fontFamily.length === 0) {
+    throw new Error('[LazyBitmapText] style.fontFamily is required and must be a non-empty string.');
+  }
+
+  return fontFamily;
 }
 
 /**
@@ -27,7 +34,10 @@ export interface LazyBitmapTextOptions {
  * ```ts
  * await BitmapFontManager.loadFont('/fonts/HYWenHei/');
  *
- * const t = new LazyBitmapText('你好世界', { fontName: 'HYWenHei', fontSize: 24 });
+ * const t = new LazyBitmapText({
+ *   text: '你好世界',
+ *   style: { fontFamily: 'HYWenHei', fontSize: 24 },
+ * });
  * app.stage.addChild(t);
  * t.text = '新内容'; // auto lazy-loads new subsets
  * ```
@@ -41,28 +51,19 @@ export class LazyBitmapText extends BitmapText {
   /** True once every manifest char in _rawText has its subset loaded. */
   private _fullyLoaded = false;
 
-  constructor(text: string, options: LazyBitmapTextOptions) {
-    const style: TextOptions['style'] = {
-      fontFamily: options.fontName,
-      fill: options.tint ?? 0xffffff,
-    };
-    if (options.fontSize != null) {
-      style.fontSize = options.fontSize;
+  constructor(options?: LazyBitmapTextOptions);
+  constructor(text?: TextString, options?: LazyBitmapTextStyle);
+  constructor(...args: [LazyBitmapTextOptions?] | [TextString, LazyBitmapTextStyle]) {
+    const options = ensureTextOptions<LazyBitmapTextOptions>(args, 'LazyBitmapText');
+
+    if (!options.style) {
+      throw new Error('[LazyBitmapText] style is required.');
     }
-    if (options.letterSpacing != null) {
-      style.letterSpacing = options.letterSpacing;
-    }
-    if (options.align != null) {
-      style.align = options.align;
-    }
-    if (options.maxWidth != null) {
-      style.wordWrap = true;
-      style.breakWords = true;
-      style.wordWrapWidth = options.maxWidth;
-    }
-    super({ text, style });
-    this._rawText = text;
-    this._fontId = options.fontName;
+    options.style.fill ??= 0xffffff;
+
+    super(options);
+    this._rawText = this.text;
+    this._fontId = resolveFontId(this.style.fontFamily);
     this._initialized = true;
     this._refreshTrackedCps();
     // Eagerly check: if all chars are already loaded (e.g. after warmup), skip
@@ -124,7 +125,7 @@ export class LazyBitmapText extends BitmapText {
   }
 
   override get text(): string { return this._rawText; }
-  override set text(value: string | number) {
+  override set text(value: TextString) {
     const str = String(value);
     this._rawText = str;
     super.text = str;

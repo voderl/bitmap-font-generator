@@ -63,13 +63,18 @@ import { BitmapFontManager, LazyBitmapText } from 'bitmap-font-generator/runtime
 await BitmapFontManager.loadFont('/fonts/MyFont/');
 
 // Create text — subsets load automatically in background
-const text = new LazyBitmapText('你好世界', {
-  fontName: 'MyFont',
-  fontSize: 24,
-  tint: 0xffffff,
-  letterSpacing: 2,
-  align: 'center',
-  maxWidth: 600,  // enables word wrap
+const text = new LazyBitmapText({
+  text: '你好世界',
+  style: {
+    fontFamily: 'MyFont',
+    fontSize: 24,
+    fill: 0xffffff,
+    letterSpacing: 2,
+    align: 'center',
+    wordWrap: true,
+    breakWords: true,
+    wordWrapWidth: 600,
+  },
 });
 app.stage.addChild(text);
 
@@ -77,7 +82,7 @@ app.stage.addChild(text);
 text.text = '新的内容';
 ```
 
-`LazyBitmapText` extends `BitmapText`, so all PixiJS properties work natively: `anchor`, `scale`, `rotation`, `alpha`, etc.
+`LazyBitmapText` mirrors PixiJS `BitmapText` constructor semantics, so standard `TextOptions` such as `anchor`, `x`, `y`, `rotation`, `alpha`, and `roundPixels` are passed through directly. The only extra restriction is that `style.fontFamily` is required and must be a single string.
 
 ### 3. Preload specific text (optional)
 
@@ -117,16 +122,18 @@ await BitmapFontManager.load('MyFont', '关键文字');
 
 #### `LazyBitmapText`
 
-Drop-in `BitmapText` replacement. Constructor options:
+Drop-in `BitmapText` replacement. It accepts the same `TextOptions` shape as PixiJS `BitmapText`, with one restriction: `style.fontFamily` is required and only supports `string`.
 
-| Option | Type | Description |
+| Field | Type | Description |
 |---|---|---|
-| `fontName` | `string` | Registered font name |
-| `fontSize` | `number` | Display size |
-| `tint` | `number` | Text color |
-| `letterSpacing` | `number` | Extra spacing between chars |
-| `maxWidth` | `number` | Word wrap width |
-| `align` | `string` | `'left'` / `'center'` / `'right'` |
+| `text` | `string` | Text content |
+| `style.fontFamily` | `string` | Registered bitmap font name |
+| `style.fontSize` | `number` | Display size |
+| `style.fill` | `number \| string` | Text color/fill |
+| `style.letterSpacing` | `number` | Extra spacing between chars |
+| `style.align` | `string` | `'left'` / `'center'` / `'right'` / `'justify'` |
+| `style.wordWrapWidth` | `number` | Word wrap width |
+| `anchor`, `x`, `y`, `rotation`, ... | PixiJS fields | Passed through directly |
 
 ## How It Works
 
@@ -137,7 +144,7 @@ Build time (Node.js)                      Runtime (Browser)
 │   ↓                 │                   │   ↓ fetch manifest.json  │
 │ Split into ~66      │    manifest.json  │   ↓ register empty font  │
 │ Unicode subsets     │ ──────────────→   │                          │
-│   ↓                 │                   │ new LazyBitmapText('你好')│
+│   ↓                 │                   │ new LazyBitmapText({...}) │
 │ Render sprite sheets│    subset PNGs    │   ↓ show dot placeholders│
 │ + compress PNGs     │ ─ ─ on demand ─→  │   ↓ load needed subsets  │
 │   ↓                 │                   │   ↓ replace with glyphs  │
