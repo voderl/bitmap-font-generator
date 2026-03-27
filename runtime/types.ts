@@ -7,12 +7,13 @@ export interface CharMetrics {
   ox: number;
   oy: number;
   adv: number;
-  /** Page index within this subset's pngs array */
+  /** Page index within this subset's pngs array. Generated manifests currently write 0. */
   page: number;
 }
 
 export interface SubsetManifest {
   id: number;
+  /** Generated manifests currently write exactly one png per subset. */
   pngs: string[];
   chars: CharMetrics[];
 }

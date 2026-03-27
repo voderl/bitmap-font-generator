@@ -6,7 +6,7 @@ Generate bitmap font sprite sheets from TTF/OTF fonts for PixiJS, with **lazy su
 
 PixiJS `BitmapText` renders significantly faster than `Text` at scale — one draw call per shared atlas vs. per-character layout. But traditional bitmap fonts require loading **all** glyphs upfront, which is impractical for CJK fonts with 20,000+ characters.
 
-This library solves the problem by splitting fonts into ~66 Unicode subsets and loading them **on demand**. A page displaying "你好世界" loads only 1-2 subsets (~500KB), not the full 50MB atlas.
+This library solves the problem by splitting fonts into ~66 Unicode subsets, then splitting oversized subsets by atlas page, and loading them **on demand**. A page displaying "你好世界" loads only 1-2 subsets (~500KB), not the full 50MB atlas.
 
 ## Performance Advantages
 
@@ -37,8 +37,7 @@ await bitmapFontGenerator({
   outputDir: './public/fonts/MyFont',
   fontName: 'MyFont',
   fontSize: 32,       // logical size in px
-  pageSize: 1024,     // atlas page size
-  padding: 1,         // glyph padding
+  padding: 0,         // glyph padding
   resolution: 2,      // 2x for HiDPI
   pngCompression: 9,  // zlib level 0-9
 });
@@ -102,8 +101,8 @@ await BitmapFontManager.load('MyFont', '关键文字');
 | `outputDir` | `string` | required | Output directory |
 | `fontName` | `string` | from font metadata | Font family name |
 | `fontSize` | `number` | `32` | Logical font size in px |
-| `pageSize` | `number` | `1024` | Atlas page dimensions |
-| `padding` | `number` | `1` | Glyph padding in px |
+| `pageSize` | `number` | `2048` | Maximum atlas page dimensions; actual size auto-selects 128/256/512/1024/2048 |
+| `padding` | `number` | `0` | Glyph padding in px |
 | `resolution` | `number` | `1` | Resolution multiplier (2 for HiDPI) |
 | `pngCompression` | `number` | `9` | PNG zlib compression level (0-9) |
 

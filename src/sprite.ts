@@ -5,12 +5,14 @@ import type { CharData, PageData, FontMetrics } from './types.js';
 
 interface RenderOptions extends FontMetrics {
   codePoints: number[];
-  pageSize: number;
+  maxPageSize: number;
   padding: number;
   outputDir: string;
   prefix: string;
   pngCompression: number;
 }
+
+const AUTO_PAGE_SIZES = [128, 256, 512, 1024, 2048] as const;
 
 /**
  * Registers a font file for use with @napi-rs/canvas
@@ -27,12 +29,10 @@ export function registerFont(fontPath: string, fontName: string): void {
  * Returns an array of PageData describing each generated PNG file.
  */
 export async function renderSpriteSheets(options: RenderOptions): Promise<PageData[]> {
-  const { fontName, fontSize, lineHeight, base, codePoints, pageSize, padding, outputDir, prefix, pngCompression } = options;
+  const { fontName, fontSize, lineHeight, base, codePoints, maxPageSize, padding, outputDir, prefix, pngCompression } = options;
 
   const pages: PageData[] = [];
   let pageId = 0;
-  let x = padding;
-  let y = padding;
 
   // Measure all characters first to determine cell widths
   // Use a temporary canvas to measure
@@ -49,7 +49,16 @@ export async function renderSpriteSheets(options: RenderOptions): Promise<PageDa
     measurements.set(cp, Math.max(1, Math.ceil(metrics.width)));
   }
 
+  const cellWidths = codePoints.flatMap((cp) => {
+    const charWidth = measurements.get(cp);
+    return charWidth === undefined ? [] : [charWidth + padding * 2];
+  });
+  const cellHeight = lineHeight + padding * 2;
+  const pageSize = selectPageSize(cellWidths, cellHeight, padding, maxPageSize);
+
   // Create first page canvas
+  let x = padding;
+  let y = padding;
   let canvas = createCanvas(pageSize, pageSize);
   let ctx = canvas.getContext('2d');
   setupContext(ctx, fontName, fontSize);
@@ -65,8 +74,7 @@ export async function renderSpriteSheets(options: RenderOptions): Promise<PageDa
     }
 
     const filename = pageId === 0 ? baseFilename : `${prefix}_${pageId}.png`;
-
-    // Crop to actual used height to avoid wasting space
+    // Crop to actual used height to avoid wasting space.
     const usedHeight = Math.min(y + (lineHeight + padding * 2) + padding, pageSize);
     const croppedCanvas = createCanvas(pageSize, usedHeight);
     const croppedCtx = croppedCanvas.getContext('2d');
@@ -124,6 +132,46 @@ export async function renderSpriteSheets(options: RenderOptions): Promise<PageDa
 
   await flushPage();
   return pages;
+}
+
+function selectPageSize(cellWidths: number[], cellHeight: number, padding: number, maxPageSize: number): number {
+  const normalizedMax = normalizeMaxPageSize(maxPageSize);
+
+  if (cellWidths.length === 0) return AUTO_PAGE_SIZES[0];
+
+  for (const size of AUTO_PAGE_SIZES) {
+    if (size > normalizedMax) break;
+    if (fitsOnSinglePage(cellWidths, cellHeight, size, padding)) return size;
+  }
+
+  return normalizedMax;
+}
+
+function normalizeMaxPageSize(maxPageSize: number): number {
+  const clamped = Math.max(AUTO_PAGE_SIZES[0], Math.min(AUTO_PAGE_SIZES[AUTO_PAGE_SIZES.length - 1], Math.ceil(maxPageSize)));
+
+  for (const size of AUTO_PAGE_SIZES) {
+    if (clamped <= size) return size;
+  }
+
+  return AUTO_PAGE_SIZES[AUTO_PAGE_SIZES.length - 1];
+}
+
+function fitsOnSinglePage(cellWidths: number[], cellHeight: number, pageSize: number, padding: number): boolean {
+  let x = padding;
+  let y = padding;
+
+  for (const cellWidth of cellWidths) {
+    if (x + cellWidth > pageSize - padding) {
+      x = padding;
+      y += cellHeight;
+    }
+
+    if (y + cellHeight > pageSize - padding) return false;
+    x += cellWidth;
+  }
+
+  return true;
 }
 
 async function compressPng(input: Buffer, compressionLevel: number): Promise<Buffer> {

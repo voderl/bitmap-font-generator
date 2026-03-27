@@ -11,15 +11,15 @@ export type { GeneratorOptions, FontManifest, SubsetManifest, FontMetrics, CharD
  * Generates bitmap font sprite sheets from a TTF/OTF font.
  *
  * Output files (written to outputDir/):
- *   manifest.json           — char metrics + subset index, loaded by BitmapFontManager
+ *   manifest.json           — char metrics + page-split subset index, loaded by BitmapFontManager
  *   {fontName}_{i}.png      — sprite sheet when subset i fits in one page
  *   {fontName}_{i}_{p}.png  — sprite sheet for subset i, page p when multiple pages are needed
  */
 export async function bitmapFontGenerator(options: GeneratorOptions): Promise<FontManifest> {
   const { fontPath, outputDir } = options;
   const fontSize = options.fontSize ?? 32;
-  const pageSize = options.pageSize ?? 1024;
-  const padding = options.padding ?? 1;
+  const pageSize = options.pageSize ?? 2048;
+  const padding = options.padding ?? 0;
   const pngCompression = options.pngCompression ?? 9;
   const resolution = options.resolution ?? 1;
 
@@ -59,6 +59,7 @@ export async function bitmapFontGenerator(options: GeneratorOptions): Promise<Fo
   const charsets = getCharsets();
   const manifest: FontManifest = { fontName, fontSize, lineHeight, base, resolution, subsets: [] };
   let generatedCount = 0;
+  let nextSubsetId = 0;
 
   for (let i = 0; i < charsets.length; i++) {
     const range = charsets[i];
@@ -71,18 +72,18 @@ export async function bitmapFontGenerator(options: GeneratorOptions): Promise<Fo
     const pages = await renderSpriteSheets({
       ...metrics,
       codePoints: chars,
-      pageSize: pageSize * resolution,
+      maxPageSize: pageSize * resolution,
       padding,
       outputDir,
       prefix,
       pngCompression,
     });
 
-    const subsetManifest: SubsetManifest = {
-      id: i,
-      pngs: pages.map((p) => p.filename),
-      chars: pages.flatMap((p) =>
-        p.chars.map((ch) => ({
+    for (const page of pages) {
+      const subsetManifest: SubsetManifest = {
+        id: nextSubsetId++,
+        pngs: [page.filename],
+        chars: page.chars.map((ch) => ({
           id: ch.id,
           x: ch.x,
           y: ch.y,
@@ -91,12 +92,13 @@ export async function bitmapFontGenerator(options: GeneratorOptions): Promise<Fo
           ox: ch.xoffset / resolution,
           oy: ch.yoffset / resolution,
           adv: ch.xadvance / resolution,
-          page: ch.page,
+          page: 0,
         })),
-      ),
-    };
-    manifest.subsets.push(subsetManifest);
-    generatedCount++;
+      };
+      manifest.subsets.push(subsetManifest);
+      generatedCount++;
+    }
+
     console.log(`done (${pages.length} page${pages.length > 1 ? 's' : ''})`);
   }
 

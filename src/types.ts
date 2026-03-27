@@ -7,9 +7,9 @@ export interface GeneratorOptions {
   fontName?: string;
   /** Base font size in pixels for sprite rendering (default: 32) */
   fontSize?: number;
-  /** Sprite sheet size in pixels - width and height (default: 1024) */
+  /** Maximum sprite sheet size in pixels; actual pages auto-select 128/256/512/1024/2048 up to this limit (default: 2048) */
   pageSize?: number;
-  /** Padding around each character in pixels (default: 1) */
+  /** Padding around each character in pixels (default: 0) */
   padding?: number;
   /** zlib compression level 0-9 (default: 9) */
   pngCompression?: number;
@@ -56,12 +56,13 @@ export interface CharEntry {
   ox: number;
   oy: number;
   adv: number;
-  /** Page index within this subset's pngs array */
+  /** Page index within this subset's pngs array. Generated manifests currently write 0. */
   page: number;
 }
 
 export interface SubsetManifest {
   id: number;
+  /** Generated manifests currently write exactly one png per subset. */
   pngs: string[];
   chars: CharEntry[];
 }

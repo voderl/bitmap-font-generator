@@ -6,7 +6,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const fontPath = join(__dirname, '../../font-slice/assets/HYWenHei-55W.ttf');
+const fontPath = join(__dirname, 'web/public/fonts/HYWenHei-55W.ttf');
 const outputDir = join(__dirname, 'web/public/fonts/HYWenHei');
 
 console.log('Starting bitmap font generation...');
@@ -18,8 +18,7 @@ const manifest = await bitmapFontGenerator({
   outputDir,
   fontName: 'HYWenHei',
   fontSize: 32,
-  pageSize: 1024,
-  padding: 1,
+  padding: 0,
   resolution: 2,
 });
 
