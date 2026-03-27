@@ -8,6 +8,8 @@ Generate Chinese bitmap font (CJK) with lazy-loaded Unicode subsets for PixiJS.
 
 [Go to Online Demo](https://voderl.cn/demo/bitmap-font-generator/index.html)
 
+[Performance Benchmark](https://voderl.cn/demo/bitmap-font-generator/bench.html)
+
 ## Why
 
 在大量文本场景下，PixiJS 的 `BitmapText` 通常比 `Text` 更适合长期驻留渲染，因为它能复用图集纹理，减少运行时排版和纹理生成的开销。
