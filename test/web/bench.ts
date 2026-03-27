@@ -4,6 +4,10 @@ import { BitmapFontManager, LazyBitmapText } from '../../runtime/index.js';
 import type { BitmapFont } from 'pixi.js';
 
 // ─── Canvas size ──────────────────────────────────────────────────────────────
+const demoBaseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+const fontBaseUrl = new URL('fonts/HYWenHei/', demoBaseUrl).toString();
+const webFontUrl = new URL('fonts/HYWenHei-55W.ttf', demoBaseUrl).toString();
+
 const W = window.innerWidth;
 const H = Math.max(window.innerHeight - 138, 420);
 const TOP = 26;
@@ -232,7 +236,7 @@ function prepareEmptyScene(nextMode: Mode): void {
 let webFontReady = false;
 async function ensureWebFont(): Promise<void> {
   if (webFontReady) return;
-  const face = await new FontFace('HYWenHei', 'url(/fonts/HYWenHei-55W.ttf)').load();
+  const face = await new FontFace('HYWenHei', `url(${webFontUrl})`).load();
   document.fonts.add(face);
   webFontReady = true;
 }
@@ -397,7 +401,7 @@ statCreate.className = 'stat-value warn';
 statBuildFrame.textContent = '等待中...';
 statBuildFrame.className = 'stat-value warn';
 
-BitmapFontManager.loadFont('/fonts/HYWenHei/').then(() => {
+BitmapFontManager.loadFont(fontBaseUrl).then(() => {
   requestRebuild('bitmap', currentCount());
 }).catch((err: Error) => {
   statCreate.textContent = `字体加载失败: ${err.message}`;

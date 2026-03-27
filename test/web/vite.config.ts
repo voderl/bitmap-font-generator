@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
+  base: '/demo/bitmap-font-generator/',
   root: '.',
   publicDir: 'public',
   resolve: {
@@ -18,5 +19,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     target: 'esnext',
+    rollupOptions: {
+      input: {
+        index: resolve(__dirname, 'index.html'),
+        bench: resolve(__dirname, 'bench.html'),
+      },
+    },
   },
 });

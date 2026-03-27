@@ -22,7 +22,9 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "generate": "tsx test/generate.ts",
-    "web": "vite test/web"
+    "web": "vite test/web",
+    "web:build": "vite build test/web",
+    "web:deploy": "npm run web:build && coscli sync ./test/web/dist/ cos://cn-blog/demo/bitmap-font-generator/ -r"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.53",

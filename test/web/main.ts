@@ -3,6 +3,9 @@ import { BitmapFontManager, LazyBitmapText } from '../../runtime/index.js';
 
 // ─── Status UI ────────────────────────────────────────────────────────────────
 
+const demoBaseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+const fontBaseUrl = new URL('fonts/HYWenHei/', demoBaseUrl).toString();
+
 const statusEl = document.getElementById('status')!;
 function setStatus(msg: string) { statusEl.textContent = msg; }
 
@@ -22,7 +25,7 @@ document.getElementById('canvas-container')!.appendChild(app.canvas);
 // ─── Load Font ────────────────────────────────────────────────────────────────
 
 setStatus('Loading font...');
-BitmapFontManager.loadFont('/fonts/HYWenHei/').then(() => {
+BitmapFontManager.loadFont(fontBaseUrl).then(() => {
   setStatus('Font loaded — starting demo...');
   runDemo();
 }).catch(err => setStatus(`Error loading font: ${err.message}`));

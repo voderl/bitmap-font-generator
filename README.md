@@ -6,7 +6,7 @@ Generate bitmap font sprite sheets from TTF/OTF fonts for PixiJS, with **lazy su
 
 PixiJS `BitmapText` renders significantly faster than `Text` at scale — one draw call per shared atlas vs. per-character layout. But traditional bitmap fonts require loading **all** glyphs upfront, which is impractical for CJK fonts with 20,000+ characters.
 
-This library solves the problem by splitting fonts into ~66 Unicode subsets, then splitting oversized subsets by atlas page, and loading them **on demand**. A page displaying "你好世界" loads only 1-2 subsets (~500KB), not the full 50MB atlas.
+This library solves the problem by splitting fonts into ~66 Unicode subsets, then splitting oversized subsets by atlas page, and loading them **on demand**. A page displaying "你好世界" loads only 1-2 subsets (~50KB), not the full 50MB atlas.
 
 ## Performance Advantages
 
@@ -157,6 +157,7 @@ npm run build      # compile src/ and runtime/ to dist/
 npm run dev        # watch mode
 npm run generate   # generate test font (HYWenHei)
 npm run web        # start Vite dev server with demo + benchmark
+npm run web:build  # build the demo page to test/web/dist/
 ```
 
 ## License

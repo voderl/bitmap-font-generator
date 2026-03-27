@@ -1,5 +1,5 @@
 // Bundled at build time — no runtime file reading needed
-import charsetData from '../data/google-font-unicode-range.json';
+import charsetData from './data/google-font-unicode-range.json';
 
 export interface CharsetRange {
   subset: string;
