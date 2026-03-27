@@ -1,33 +1,50 @@
 # bitmap-font-generator
 
-Generate bitmap font sprite sheets from TTF/OTF fonts for PixiJS, with **lazy subset loading** for optimal web delivery.
+Generate Chinese bitmap font (CJK) with lazy-loaded Unicode subsets for PixiJS.
+
+暂时面向 PixiJS 的位图字体生成工具：把 TTF/OTF 拆成多个 Unicode 子集，生成可按需加载的 BitmapText，适合中文、日文、韩文等大字符集场景。
+
+## Demo
+
+[Go to Online Demo](https://voderl.cn/demo/bitmap-font-generator/index.html)
 
 ## Why
 
-PixiJS `BitmapText` renders significantly faster than `Text` at scale — one draw call per shared atlas vs. per-character layout. But traditional bitmap fonts require loading **all** glyphs upfront, which is impractical for CJK fonts with 20,000+ characters.
+在大量文本场景下，PixiJS 的 `BitmapText` 通常比 `Text` 更适合长期驻留渲染，因为它能复用图集纹理，减少运行时排版和纹理生成的开销。
 
-This library solves the problem by splitting fonts into ~66 Unicode subsets, then splitting oversized subsets by atlas page, and loading them **on demand**. A page displaying "你好世界" loads only 1-2 subsets (~50KB), not the full 50MB atlas.
+但传统位图字体有个明显问题：要先把整套字形全部生成并全部加载。对于 CJK 字体，这通常意味着几千到几万个字符，一次性加载不现实。
 
-## Performance Advantages
+这个库的做法是：
 
-- **Lazy subset loading** — only download glyphs that are actually displayed
-- **Zero layout shift** — unloaded characters render as dot placeholders with correct advance widths; layout never jumps when real glyphs arrive
-- **O(n) incremental updates** — new subsets add only their own chars to the BitmapFont, not rebuild everything
-- **Smart subscription** — each `LazyBitmapText` auto-unsubscribes once all its characters are loaded, so idle instances have zero overhead
-- **Compressed PNGs** — palette mode (4 colors) + zlib shrinks atlas pages to ~300-500KB each
-- **HiDPI support** — generate at 2x resolution for Retina displays, runtime scaling handled automatically
+- 构建时把字体拆成多个 Unicode 子集
+- 每个子集单独生成 atlas PNG 和字形信息
+- 运行时先加载 `manifest.json`
+- 真正显示到页面上的字符，才去加载对应子集
 
-## Install
+这样同一套字体既保留了位图字体的渲染优势，也避免了首屏就下载整包大字体资源。
+
+## 体积示例
+
+以下数据来自仓库内的示例字体 `HYWenHei-55W.ttf`：
+
+- 原始 TTF 文件约 `3.1 MB`
+- 生成后的 atlas PNG 总计约 `2.47 MB`
+- `manifest.json` 约 `681 KB`
+- 单张 atlas 图片大多在 `10 KB` 到 `52 KB` 之间
+
+重点不在于把“整套资源的总和”压到极致，而是在于运行时只按需加载少量子集图片。实际页面通常不会一次请求全部 atlas。
+
+## 安装
 
 ```bash
 npm install bitmap-font-generator
 ```
 
-Peer dependency: `pixi.js >= 8.0.0` (optional, only needed for runtime)
+目前主要面向 `pixi.js >= 8.0.0`。(如果你有 `PixiJS v7` 的使用需求，可以提 issue，旧版本支持 v7)
 
-## Usage
+## 用法
 
-### 1. Generate bitmap font (Node.js, build time)
+### 1. 构建阶段生成位图字体
 
 ```ts
 import { bitmapFontGenerator } from 'bitmap-font-generator';
@@ -36,31 +53,29 @@ await bitmapFontGenerator({
   fontPath: './assets/MyFont.ttf',
   outputDir: './public/fonts/MyFont',
   fontName: 'MyFont',
-  fontSize: 32,       // logical size in px
-  padding: 0,         // glyph padding
-  resolution: 2,      // 2x for HiDPI
-  pngCompression: 9,  // zlib level 0-9
+  fontSize: 32,
+  padding: 0,
+  resolution: 2,
 });
 ```
 
-Output:
-```
+输出目录示例：
+
+```text
 public/fonts/MyFont/
-  manifest.json            # char metrics + subset index
-  MyFont_0.png             # subset 0
-  MyFont_1.png             # subset 1
+  manifest.json
+  MyFont_0.png
+  MyFont_1.png
   ...
 ```
 
-### 2. Use in PixiJS (browser, runtime)
+### 2. 在 PixiJS 中使用
 
 ```ts
 import { BitmapFontManager, LazyBitmapText } from 'bitmap-font-generator/runtime';
 
-// Load manifest (registers an empty BitmapFont immediately)
 await BitmapFontManager.loadFont('/fonts/MyFont/');
 
-// Create text — subsets load automatically in background
 const text = new LazyBitmapText({
   text: '你好世界',
   style: {
@@ -74,92 +89,89 @@ const text = new LazyBitmapText({
     wordWrapWidth: 600,
   },
 });
+
 app.stage.addChild(text);
 
-// Update text — new subsets load on demand
 text.text = '新的内容';
 ```
 
-`LazyBitmapText` mirrors PixiJS `BitmapText` constructor semantics, so standard `TextOptions` such as `anchor`, `x`, `y`, `rotation`, `alpha`, and `roundPixels` are passed through directly. The only extra restriction is that `style.fontFamily` is required and must be a single string.
+`BitmapFontManager.loadFont()` 会先加载 `manifest.json`，并立即注册一个空的 `BitmapFont`。这样 `LazyBitmapText` 在真实子集尚未下载完成时，也能先用占位字符稳定渲染。
 
-### 3. Preload specific text (optional)
+`LazyBitmapText` 尽量保持和 PixiJS `BitmapText` 一致的构造方式，常见的 `anchor`、`x`、`y`、`rotation`、`alpha`、`roundPixels` 等字段都可以直接传入。额外限制只有一个：`style.fontFamily` 必须是单个字符串。
+
+### 3. 预加载指定文本
 
 ```ts
-// Ensure characters are ready before display
 await BitmapFontManager.load('MyFont', '关键文字');
 ```
 
+如果你希望文本在首次展示前就已经准备好对应字形，可以先手动调用这一步。
+
 ## API
 
-### Generator (Node.js)
+### `bitmapFontGenerator(options): Promise<FontManifest>`
 
-#### `bitmapFontGenerator(options): Promise<FontManifest>`
-
-| Option | Type | Default | Description |
+| 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `fontPath` | `string` | required | Path to TTF/OTF file |
-| `outputDir` | `string` | required | Output directory |
-| `fontName` | `string` | from font metadata | Font family name |
-| `fontSize` | `number` | `32` | Logical font size in px |
-| `pageSize` | `number` | `2048` | Maximum atlas page dimensions; actual size auto-selects 128/256/512/1024/2048 |
-| `padding` | `number` | `0` | Glyph padding in px |
-| `resolution` | `number` | `1` | Resolution multiplier (2 for HiDPI) |
-| `pngCompression` | `number` | `9` | PNG zlib compression level (0-9) |
+| `fontPath` | `string` | 必填 | TTF/OTF 文件路径 |
+| `outputDir` | `string` | 必填 | 输出目录 |
+| `fontName` | `string` | 取字体元数据 | 输出到 manifest 中的字体名 |
+| `fontSize` | `number` | `32` | 逻辑字号，单位 px |
+| `pageSize` | `number` | `2048` | 图集最大边长，实际会自动选择 128/256/512/1024/2048 |
+| `padding` | `number` | `0` | 字符四周留白 |
+| `resolution` | `number` | `1` | 分辨率倍率，适合 HiDPI 输出 |
 
-### Runtime (Browser)
+### `BitmapFontManager`
 
-#### `BitmapFontManager`
-
-| Method | Description |
+| 方法 | 说明 |
 |---|---|
-| `.loadFont(dir)` | Load manifest and register font |
-| `.load(fontName, text)` | Ensure characters are loaded |
-| `.isCharLoaded(fontName, cp)` | Check if a code point's subset is loaded |
-| `.getCharAdvance(fontName, cp)` | Get advance width for a code point |
-| `.subscribe(fontName, cb)` | Listen to font update events; returns unsubscribe fn |
+| `.loadFont(dir)` | 加载字体目录下的 `manifest.json`，并注册空的位图字体 |
+| `.load(fontName, text)` | 确保这段文本需要的字符子集已加载 |
+| `.isCharLoaded(fontName, cp)` | 判断某个 code point 对应子集是否已加载 |
+| `.getCharAdvance(fontName, cp)` | 获取字符 advance 宽度 |
+| `.subscribe(fontName, cb)` | 订阅字体更新事件，返回取消订阅函数 |
 
-#### `LazyBitmapText`
+### `LazyBitmapText`
 
-Drop-in `BitmapText` replacement. It accepts the same `TextOptions` shape as PixiJS `BitmapText`, with one restriction: `style.fontFamily` is required and only supports `string`.
+它是一个面向运行时懒加载的 `BitmapText` 替代实现，接受与 PixiJS `BitmapText` 接近的 `TextOptions` 结构。
 
-| Field | Type | Description |
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| `text` | `string` | Text content |
-| `style.fontFamily` | `string` | Registered bitmap font name |
-| `style.fontSize` | `number` | Display size |
-| `style.fill` | `number \| string` | Text color/fill |
-| `style.letterSpacing` | `number` | Extra spacing between chars |
+| `text` | `string` | 文本内容 |
+| `style.fontFamily` | `string` | 已注册的位图字体名 |
+| `style.fontSize` | `number` | 显示字号 |
+| `style.fill` | `number \| string` | 文本颜色 |
+| `style.letterSpacing` | `number` | 字间距 |
 | `style.align` | `string` | `'left'` / `'center'` / `'right'` / `'justify'` |
-| `style.wordWrapWidth` | `number` | Word wrap width |
-| `anchor`, `x`, `y`, `rotation`, ... | PixiJS fields | Passed through directly |
+| `style.wordWrapWidth` | `number` | 自动换行宽度 |
+| `anchor`, `x`, `y`, `rotation` 等 | PixiJS 字段 | 直接透传 |
 
-## How It Works
+## 工作原理
 
+```text
+构建阶段（Node.js）                    运行时（Browser）
+┌─────────────────────┐               ┌──────────────────────────┐
+│ TTF/OTF 字体        │               │ loadFont('/fonts/MyFont/')│
+│   ↓                 │               │   ↓ 读取 manifest.json   │
+│ 拆成多个 Unicode 子集│  manifest.json│   ↓ 注册空 BitmapFont    │
+│   ↓                 │ ───────────→  │                          │
+│ 渲染 atlas PNG      │   subset PNGs │ new LazyBitmapText(...)  │
+│   ↓                 │ ──按需加载──→ │   ↓ 先显示占位字符       │
+│ 写出 manifest.json  │               │   ↓ 加载所需子集         │
+└─────────────────────┘               │   ↓ 用真实字形替换       │
+                                      └──────────────────────────┘
 ```
-Build time (Node.js)                      Runtime (Browser)
-┌─────────────────────┐                   ┌──────────────────────────┐
-│ TTF/OTF font        │                   │ loadFont('/fonts/MyFont/')│
-│   ↓                 │                   │   ↓ fetch manifest.json  │
-│ Split into ~66      │    manifest.json  │   ↓ register empty font  │
-│ Unicode subsets     │ ──────────────→   │                          │
-│   ↓                 │                   │ new LazyBitmapText({...}) │
-│ Render sprite sheets│    subset PNGs    │   ↓ show dot placeholders│
-│ + compress PNGs     │ ─ ─ on demand ─→  │   ↓ load needed subsets  │
-│   ↓                 │                   │   ↓ replace with glyphs  │
-│ Write manifest.json │                   │   ↓ re-render (no shift) │
-└─────────────────────┘                   └──────────────────────────┘
-```
 
-## Development
+## 开发
 
 ```bash
-npm run build      # compile src/ and runtime/ to dist/
-npm run dev        # watch mode
-npm run generate   # generate test font (HYWenHei)
-npm run web        # start Vite dev server with demo + benchmark
-npm run web:build  # build the demo page to test/web/dist/
+npm run build      # 构建 src/ 和 runtime/ 到 dist/
+npm run dev        # 监听模式
+npm run generate   # 生成测试字体资源
+npm run web        # 启动 demo 和 benchmark 的本地开发服务
+npm run web:build  # 构建 demo 页面到 test/web/dist/
 ```
 
-## License
+## 许可协议
 
 MIT

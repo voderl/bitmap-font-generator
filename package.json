@@ -1,7 +1,28 @@
 {
   "name": "bitmap-font-generator",
   "version": "0.1.0",
-  "description": "Generate bitmap font sprite sheets + .fnt files from TTF/OTF fonts for PixiJS",
+  "description": "Generate bitmap font atlases with lazy-loaded Unicode subsets from TTF/OTF fonts for PixiJS.",
+  "keywords": [
+    "bitmap-font",
+    "chinese-font",
+    "pixi",
+    "pixijs",
+    "font-generator",
+    "sprite-sheet",
+    "unicode",
+    "cjk",
+    "lazy-loading"
+  ],
+  "author": "voderl <voderl@qq.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voderl/bitmap-font-generator.git"
+  },
+  "homepage": "https://github.com/voderl/bitmap-font-generator",
+  "bugs": {
+    "url": "https://github.com/voderl/bitmap-font-generator/issues"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -18,9 +39,13 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepublishOnly": "npm run build",
     "generate": "tsx test/generate.ts",
     "web": "vite test/web",
     "web:build": "vite build test/web",
