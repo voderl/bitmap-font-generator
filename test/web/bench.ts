@@ -108,6 +108,11 @@ function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
+function setLatencyStat(el: HTMLElement, ms: number): void {
+  el.textContent = `${ms.toFixed(0)} ms`;
+  el.className = `stat-value${ms > 500 ? ' danger' : ms > 100 ? ' warn' : ''}`;
+}
+
 function sliderToCount(v: number): number {
   return Math.round(Math.exp(Math.log(200) + (Math.log(10000) - Math.log(200)) * v / 100));
 }
@@ -144,8 +149,8 @@ function createObject(mode: Mode, sample: BenchSample): Text | LazyBitmapText {
       });
 }
 
-// Force Pixi to build the actual canvas texture / bitmap mesh during rebuild
-// so "creation cost" reflects real work rather than first-render deferral.
+// Warm bounds/layout early for placement. Text texture upload still happens
+// inside Pixi's render pipe, so the visible latency must be measured separately.
 function forceObjectBuild(obj: Text | LazyBitmapText): void {
   obj.getLocalBounds();
 }
@@ -169,16 +174,33 @@ type Mode = 'text' | 'bitmap';
 
 let mode: Mode = 'bitmap';
 let particles: Particle[] = [];
-let creationMs = 0;
 let isRebuilding = false;
 let buildSerial = 0;
-let captureBuildFrame = false;
 let autoRebuild = false;
 let lastAutoRebuildAt = performance.now();
 let scheduledRebuildTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingVisibleBuild: { id: number; mountedAt: number } | null = null;
+
+const firstVisibleProbe = {
+  postrender(): void {
+    const pending = pendingVisibleBuild;
+
+    if (!pending) return;
+    if (pending.id !== buildSerial) {
+      pendingVisibleBuild = null;
+      return;
+    }
+
+    setLatencyStat(statBuildFrame, performance.now() - pending.mountedAt);
+    pendingVisibleBuild = null;
+  },
+};
+
+app.renderer.runners.postrender.add(firstVisibleProbe);
 
 function resetBenchStats(): void {
   fpsBuf.length = 0;
+  pendingVisibleBuild = null;
   statBuildFrame.textContent = '等待中...';
   statBuildFrame.className = 'stat-value warn';
 }
@@ -236,7 +258,7 @@ async function rebuild(newMode: Mode, count: number): Promise<void> {
       : 'LazyBitmapText — 驻留渲染 (draw calls 受 atlas 页数影响)';
 
     const rng = mulberry32(0x9e3779b9 ^ count);
-    const t0 = performance.now();
+    const createStartedAt = performance.now();
     const nextParticles: Particle[] = [];
 
     for (let i = 0; i < count; i++) {
@@ -253,8 +275,8 @@ async function rebuild(newMode: Mode, count: number): Promise<void> {
     }
 
     particles = nextParticles;
-    creationMs = performance.now() - t0;
-    captureBuildFrame = true;
+    const createFinishedAt = performance.now();
+    pendingVisibleBuild = { id: buildId, mountedAt: createFinishedAt };
     lastAutoRebuildAt = performance.now();
 
     const font = newMode === 'bitmap'
@@ -266,9 +288,7 @@ async function rebuild(newMode: Mode, count: number): Promise<void> {
       ? `~${Math.ceil(count / SPRITE_BATCH_SIZE)} (独立纹理, ${SPRITE_BATCH_SIZE}个/call)`
       : `~${loadedAtlasPages} atlas页 (共享图集, << N)`;
 
-    statCreate.textContent = `${creationMs.toFixed(0)} ms`;
-    statCreate.className =
-      `stat-value${creationMs > 500 ? ' danger' : creationMs > 100 ? ' warn' : ''}`;
+    setLatencyStat(statCreate, createFinishedAt - createStartedAt);
     statCount.textContent = String(count);
     statDraws.textContent = estDraws;
     statDraws.className = 'stat-value';
@@ -299,13 +319,6 @@ app.ticker.add(() => {
   }
   lastUpdateMs = performance.now() - u0;
 
-  if (captureBuildFrame) {
-    captureBuildFrame = false;
-    statBuildFrame.textContent = `${dt.toFixed(1)} ms`;
-    statBuildFrame.className =
-      `stat-value${dt > 50 ? ' danger' : dt > 25 ? ' warn' : ''}`;
-  }
-
   if (frameCount % 15 === 0) {
     statFPS.textContent = `${avgFPS.toFixed(1)}`;
     statFPS.className = `stat-value${avgFPS < 20 ? ' danger' : avgFPS < 45 ? ' warn' : ''}`;
@@ -335,8 +348,10 @@ function requestRebuild(newMode: Mode, count: number): void {
   mode = newMode;
   syncModeButtons(newMode);
   if (scheduledRebuildTimer) clearTimeout(scheduledRebuildTimer);
-  statCreate.textContent = '等待渲染...';
+  statCreate.textContent = '准备中...';
   statCreate.className = 'stat-value warn';
+  statBuildFrame.textContent = '等待首帧...';
+  statBuildFrame.className = 'stat-value warn';
   scheduledRebuildTimer = setTimeout(() => {
     scheduledRebuildTimer = null;
     void rebuild(newMode, count);

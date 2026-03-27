@@ -73,7 +73,20 @@ function runDemo() {
   interactiveLabel.y = 0;
   interactiveContainer.addChild(interactiveLabel);
 
-  let activeLazyText: LazyBitmapText | null = null;
+  const activeLazyText = new LazyBitmapText({
+    text: '',
+    style: {
+      fontFamily: 'HYWenHei',
+      fontSize: 32,
+      fill: 0xffffff,
+      align: 'left',
+      wordWrap: true,
+      breakWords: true,
+      wordWrapWidth: 600,
+    },
+  });
+  activeLazyText.y = 14;
+  interactiveContainer.addChild(activeLazyText);
 
   function renderInteractive() {
     const text = (document.getElementById('textInput') as HTMLInputElement).value;
@@ -81,20 +94,14 @@ function runDemo() {
     const colorHex = (document.getElementById('colorInput') as HTMLInputElement).value;
     const tint = parseInt(colorHex.replace('#', ''), 16);
     const align = (document.getElementById('alignInput') as HTMLSelectElement).value as 'left' | 'center' | 'right';
-    activeLazyText?.destroy();
-    activeLazyText = new LazyBitmapText({
-      text,
-      style: {
-        fontFamily: 'HYWenHei',
-        fontSize,
-        fill: tint,
-        align,
-        wordWrap: true,
-        wordWrapWidth: 600,
-      },
-    });
-    activeLazyText.y = 14;
-    interactiveContainer.addChild(activeLazyText);
+
+    activeLazyText.text = text;
+    activeLazyText.style.fontSize = fontSize;
+    activeLazyText.style.fill = tint;
+    activeLazyText.style.align = align;
+    activeLazyText.style.wordWrap = true;
+    activeLazyText.style.breakWords = true;
+    activeLazyText.style.wordWrapWidth = 600;
 
     setStatus(`Rendering: "${text.slice(0, 40)}"`);
   }
