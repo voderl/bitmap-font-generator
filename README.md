@@ -1,8 +1,8 @@
 # bitmap-font-generator
 
-Generate Chinese bitmap font (CJK) with lazy-loaded Unicode subsets for PixiJS.
+Generate bitmap fonts for Chinese fonts (CJK) with lazy-loaded Unicode subsets.
 
-暂时面向 PixiJS 的位图字体生成工具：把 TTF/OTF 拆成多个 Unicode 子集，生成可按需加载的 BitmapText，适合中文、日文、韩文等大字符集场景。
+面向中文字体的位图字体生成工具：把 TTF/OTF 拆成多个 Unicode 子集，生成可按需加载的 BitmapText，适合中文、日文、韩文等大字符集场景。
 
 ## Demo
 
@@ -27,11 +27,11 @@ Generate Chinese bitmap font (CJK) with lazy-loaded Unicode subsets for PixiJS.
 
 ## 体积示例
 
-以下数据来自仓库内的示例字体 `HYWenHei-55W.ttf`：
+以下数据来自仓库内的示例字体 `HYWenHei-55W.ttf`，生成参数为每个字符 `32px`、`resolution: 2`：
 
 - 原始 TTF 文件约 `3.1 MB`
 - 生成后的 atlas PNG 总计约 `2.47 MB`
-- `manifest.json` 约 `681 KB`
+- `manifest.json` gzip 压缩后约 `47 KB`
 - 单张 atlas 图片大多在 `10 KB` 到 `52 KB` 之间
 
 重点不在于把“整套资源的总和”压到极致，而是在于运行时只按需加载少量子集图片。实际页面通常不会一次请求全部 atlas。
