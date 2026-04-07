@@ -122,6 +122,7 @@ await BitmapFontManager.load('MyFont', '关键文字');
 | `pageSize` | `number` | `2048` | 图集最大边长，实际会自动选择 128/256/512/1024/2048 |
 | `padding` | `number` | `0` | 字符四周留白 |
 | `resolution` | `number` | `1` | 分辨率倍率，适合 HiDPI 输出 |
+| `customUnicodeRange` | `Array<{ unicodes: number[] }>` | 内置 Google Fonts 子集 | 自定义 Unicode 拆包范围，覆盖默认的 98 个子集 |
 
 ### `BitmapFontManager`
 

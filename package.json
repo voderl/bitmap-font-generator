@@ -1,6 +1,6 @@
 {
   "name": "bitmap-font-generator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generate bitmap font atlases with lazy-loaded Unicode subsets from TTF/OTF fonts for PixiJS.",
   "keywords": [
     "bitmap-font",

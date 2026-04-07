@@ -15,6 +15,8 @@ export interface GeneratorOptions {
   pngCompression?: number;
   /** Pixel density multiplier for HiDPI. fontSize and pageSize are multiplied by this value. (default: 1) */
   resolution?: number;
+  /** Custom unicode ranges for subset splitting. When provided, overrides the built-in Google Fonts subsets. */
+  customUnicodeRange?: Array<{ unicodes: number[] }>;
 }
 
 export interface CharData {

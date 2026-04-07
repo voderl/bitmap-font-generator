@@ -56,7 +56,7 @@ export async function bitmapFontGenerator(options: GeneratorOptions): Promise<Fo
   const availableCPs = new Set(Object.keys(cmap?.glyphIndexMap ?? {}).map(Number));
   console.log(`[bitmap-font-generator] Font has ${availableCPs.size} glyphs`);
 
-  const charsets = getCharsets();
+  const charsets = options.customUnicodeRange ?? getCharsets();
   const manifest: FontManifest = { fontName, fontSize, lineHeight, base, resolution, subsets: [] };
   let generatedCount = 0;
   let nextSubsetId = 0;
